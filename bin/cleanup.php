@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file cleanup.php
+ *
+ * Deletes expired nonce, rate-limit, and audit records as a scheduled maintenance task.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: Command-line options, environment variables, and runtime configuration files.
+ * Outputs: Writes operational status to the console and updates gateway state as described below.
+ * Usage: php bin/cleanup.php
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 /**
@@ -37,6 +49,7 @@ if (!is_string($storageDir)) {
 $database = Connection::getInstance();
 $now = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
 
+// Remove database records that no longer participate in request enforcement.
 $nonces = $database->prepare('DELETE FROM `api_nonces` WHERE `expires_at` < :now');
 $nonces->execute(['now' => $now]);
 fwrite(STDOUT, sprintf("Deleted %d expired nonce(s).\n", $nonces->rowCount()));
@@ -53,6 +66,7 @@ if ($retentionDays > 0) {
     fwrite(STDOUT, sprintf("Deleted %d audit log(s) older than %d day(s).\n", $audit->rowCount(), $retentionDays));
 }
 
+// File buckets can survive process interruptions; prune counters older than one day.
 $removed = 0;
 $fileCutoff = time() - 86400;
 foreach (glob(rtrim((string) $storageDir, '/') . '/*.json') ?: [] as $path) {

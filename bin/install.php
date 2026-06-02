@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file install.php
+ *
+ * Runs the command-line installer for database setup, client creation, configuration generation, and filesystem hardening.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: Command-line options, environment variables, and runtime configuration files.
+ * Outputs: Writes operational status to the console and updates gateway state as described below.
+ * Usage: php bin/install.php [--non-interactive]
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 /**

@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file HmacAuth.php
+ *
+ * Authenticates API requests by validating signed headers, timestamp freshness, client configuration, and the HMAC signature.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: Constructor dependencies and typed method arguments supplied by the application.
+ * Outputs: Typed return values, domain exceptions, or persisted side effects documented by each method.
+ * Usage: Loaded through the App\ namespace autoloader and instantiated by the gateway composition root.
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 namespace App\Security;
@@ -19,7 +31,11 @@ final class HmacAuth
     ) {
     }
 
-    /** @return array{id:int,client_id:string,secret:string} */
+    /**
+     * Authenticates one signed request and stores replay-protection attributes on it.
+     *
+     * @return array{id:int,client_id:string,secret:string}
+     */
     public function authenticate(Request $request): array
     {
         $clientId = $this->required($request, 'x-client-id');

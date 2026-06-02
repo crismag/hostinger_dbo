@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file index.php
+ *
+ * Bootstraps the HTTP gateway, constructs its middleware pipeline, and emits the final JSON response.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: HTTP request data plus runtime configuration files.
+ * Outputs: Emits an HTTP response.
+ * Usage: Configure the web server document root to public/; requests are routed to this front controller.
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 use App\Controllers\ObjectController;
@@ -46,6 +58,8 @@ spl_autoload_register(static function (string $class): void {
     }
 });
 
+// ---------------------------------------------------------------------------
+// Bootstrap request metadata and deployment configuration.
 $request = null;
 try {
     $securityFile = dirname(__DIR__) . '/config/security.php';
@@ -70,6 +84,7 @@ try {
     $scopeViolation = (string) ($security['tenant_scope']['on_violation'] ?? 'reject');
     $storageDir = (string) ($preAuthConfig['storage_dir'] ?? (sys_get_temp_dir() . '/dbo_gateway_ratelimit'));
 
+    // Reject abusive traffic before opening a database connection.
     $limiter = new FilesystemRateLimiter($storageDir);
     (new MiddlewarePipeline([
         new HttpsMiddleware((bool) ($security['require_https'] ?? true), (bool) ($security['dev_mode'] ?? false)),
@@ -80,6 +95,7 @@ try {
     $schemas = new SchemaRegistry($database);
     $demo = new PublicDemoService($demoConfig, $limiter);
 
+    // Process the authenticated or constrained-demo operation through the main policy stack.
     $pipeline = new MiddlewarePipeline([
         new RoutingMiddleware(new Router()),
         new JsonBodyLimitMiddleware((int) $security['max_body_bytes']),
@@ -102,6 +118,7 @@ try {
     ]);
     $controller = new ObjectController(new ObjectService(new ObjectRepository($database, new QueryBuilder(), $schemas)));
     $pipeline->handle($request, $controller->handle(...))->emit();
+// Convert expected domain failures and unexpected errors into safe JSON envelopes.
 } catch (ApiException $exception) {
     Response::error($exception, $request !== null ? (string) $request->attribute('request_id') : '')->emit();
 } catch (Throwable $exception) {

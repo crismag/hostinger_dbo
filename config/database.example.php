@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file database.example.php
+ *
+ * Provides the copyable database connection template consumed by the PDO connection factory.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: Deployment-specific values edited by the operator after copying this template.
+ * Outputs: Returns a PHP configuration array.
+ * Usage: Copy to config/database.php and customize deployment values.
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 /**

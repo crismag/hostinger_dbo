@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file gateway_smoke.php
+ *
+ * Exercises the primary signed CRUD gateway flow against an isolated SQLite database.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: A PHP runtime with the extensions checked by this script.
+ * Outputs: Exits successfully after assertions pass; otherwise raises an assertion or runtime error.
+ * Usage: php tests/gateway_smoke.php
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 assert_options(ASSERT_ACTIVE, 1);

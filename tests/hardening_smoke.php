@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file hardening_smoke.php
+ *
+ * Exercises security-hardening behaviors including proxy trust, limiting, audit modes, scope enforcement, and demo access.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: A PHP runtime with the extensions checked by this script.
+ * Outputs: Exits successfully after assertions pass; otherwise raises an assertion or runtime error.
+ * Usage: php tests/hardening_smoke.php
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 /**
