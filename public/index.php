@@ -15,6 +15,7 @@
 declare(strict_types=1);
 
 use App\Controllers\ObjectController;
+use App\Controllers\ServiceController;
 use App\Core\ApiException;
 use App\Core\MiddlewarePipeline;
 use App\Core\Request;
@@ -38,6 +39,7 @@ use App\Security\HmacAuth;
 use App\Security\NonceStore;
 use App\Security\SignatureVerifier;
 use App\Services\AuditLogService;
+use App\Services\Operations\OperationRegistry;
 use App\Services\MutationGuardService;
 use App\Services\ObjectService;
 use App\Services\PermissionService;
@@ -134,8 +136,19 @@ try {
             $demo,
         ),
     ]);
-    $controller = new ObjectController(new ObjectService(new ObjectRepository($database, new QueryBuilder(), $schemas)));
-    $pipeline->handle($request, $controller->handle(...))->emit();
+    // Terminal dispatch: object operations vs named service operations, chosen
+    // by the route kind. Both run behind the single pipeline above.
+    $objectController = new ObjectController(new ObjectService(new ObjectRepository($database, new QueryBuilder(), $schemas)));
+    $servicesFile = dirname(__DIR__) . '/config/services.php';
+    $servicesConfig = is_readable($servicesFile) ? (array) require $servicesFile : [];
+    $serviceController = new ServiceController(new OperationRegistry(), $servicesConfig, $clientConfig, $database);
+
+    $dispatch = static function (Request $request) use ($objectController, $serviceController): Response {
+        return $request->attribute('route_kind') === 'service'
+            ? $serviceController->handle($request)
+            : $objectController->handle($request);
+    };
+    $pipeline->handle($request, $dispatch)->emit();
 // Convert expected domain failures and unexpected errors into safe JSON envelopes.
 } catch (ApiException $exception) {
     Response::error($exception, $request !== null ? (string) $request->attribute('request_id') : '')->emit();

@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes yet._
+### Added
+
+- **Service Registry** — named operations at `POST /api/v1/services/{service}/{operation}` for logic outside the generic gateway (joins, multi-table reports, transactions). Runs behind the same HMAC/nonce/rate-limit/audit pipeline via a new `ServiceController`. Handlers implement `App\Services\Operations\ServiceOperation`, receive a `ServiceContext` (DB + resolved client + enforced scope), and declare an input spec validated before execution. **Handler classes resolve only through a fixed compile-time allowlist** (`OperationRegistry`) — never from config or the database. Per-client grants live under `clients[clientId]['services']`; the `service/operation → key` map is `config/services.php`. Reference operation `reports.tenant_summary` (a JOIN + aggregate). New codes: `SERVICE_NOT_FOUND`, `SERVICE_OPERATION_NOT_FOUND`, `SERVICE_INPUT_INVALID`. Covered by `tests/service_smoke.php`.
 
 ## [0.3.0] - 2026-06-02
 

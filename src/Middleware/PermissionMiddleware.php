@@ -41,6 +41,12 @@ final class PermissionMiddleware
 
     public function handle(Request $request, Closure $next): Response
     {
+        // Service operations carry their own authorization and input validation
+        // in the ServiceController; the entity-permission path does not apply.
+        if ($request->attribute('route_kind') === 'service') {
+            return $next($request);
+        }
+
         $entity = (string) $request->attribute('entity');
         $action = (string) $request->attribute('action');
         $schema = $this->schemas->get($entity);

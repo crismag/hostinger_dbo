@@ -31,8 +31,14 @@ final class RoutingMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         $route = $this->router->match($request);
-        $request->setAttribute('entity', $route['entity']);
-        $request->setAttribute('action', $route['action']);
+        $request->setAttribute('route_kind', $route['kind']);
+        if ($route['kind'] === 'service') {
+            $request->setAttribute('service', $route['service']);
+            $request->setAttribute('operation', $route['operation']);
+        } else {
+            $request->setAttribute('entity', $route['entity']);
+            $request->setAttribute('action', $route['action']);
+        }
 
         return $next($request);
     }
