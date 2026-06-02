@@ -18,7 +18,9 @@ final class JsonBodyLimitMiddleware
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (strlen($request->rawBody) > $this->maxBytes) {
+        $declaredLength = $request->header('content-length');
+        if (($declaredLength !== null && (int) $declaredLength > $this->maxBytes)
+            || strlen($request->rawBody) > $this->maxBytes) {
             throw new ApiException('REQUEST_BODY_TOO_LARGE', 'Request body exceeds the configured limit', 413);
         }
         $contentType = strtolower((string) $request->header('content-type'));

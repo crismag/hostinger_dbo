@@ -22,7 +22,7 @@ final class Request
     ) {
     }
 
-    public static function fromGlobals(): self
+    public static function fromGlobals(int $maxBodyBytes = 65536): self
     {
         $headers = [];
         foreach ($_SERVER as $key => $value) {
@@ -33,12 +33,21 @@ final class Request
         if (isset($_SERVER['CONTENT_TYPE'])) {
             $headers['content-type'] = (string) $_SERVER['CONTENT_TYPE'];
         }
-        $body = file_get_contents('php://input');
+        $declaredLength = isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : null;
+        if ($declaredLength !== null && $declaredLength > $maxBodyBytes) {
+            $body = '';
+        } else {
+            $stream = fopen('php://input', 'rb');
+            $body = $stream !== false ? (string) fread($stream, $maxBodyBytes + 1) : '';
+            if ($stream !== false) {
+                fclose($stream);
+            }
+        }
 
         return new self(
             strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')),
             parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/',
-            $body === false ? '' : $body,
+            $body,
             $headers,
             isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
         );

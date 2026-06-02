@@ -32,8 +32,8 @@ final class ObjectRepository extends BaseRepository
         foreach ($parameters as $key => $value) {
             $statement->bindValue($key, $value);
         }
-        $statement->bindValue('limit', $request['limit'], PDO::PARAM_INT);
-        $statement->bindValue('offset', $request['offset'], PDO::PARAM_INT);
+        $statement->bindValue(':limit', $request['limit'], PDO::PARAM_INT);
+        $statement->bindValue(':offset', $request['offset'], PDO::PARAM_INT);
         $statement->execute();
 
         return $statement->fetchAll();
