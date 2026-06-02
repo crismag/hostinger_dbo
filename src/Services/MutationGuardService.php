@@ -23,7 +23,8 @@ final class MutationGuardService
         if (!$this->enabled || !in_array($action, ['update', 'delete'], true)) {
             return;
         }
-        if ($this->clientConfig[$clientId]['allow_bulk_updates'] ?? false) {
+        $client = $this->clientConfig[$clientId] ?? [];
+        if ($client['allow_bulk_updates'] ?? false) {
             return;
         }
         if (!array_key_exists($schema->primaryKey, $where) || $where[$schema->primaryKey] === null || $where[$schema->primaryKey] === '') {

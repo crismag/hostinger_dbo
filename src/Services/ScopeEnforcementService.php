@@ -27,7 +27,8 @@ final class ScopeEnforcementService
      */
     public function apply(string $clientId, string $action, array $validated): array
     {
-        $filters = $this->clientConfig[$clientId]['enforced_filters'] ?? [];
+        $client = $this->clientConfig[$clientId] ?? [];
+        $filters = $client['enforced_filters'] ?? [];
         if (!is_array($filters) || $filters === []) {
             return $validated;
         }

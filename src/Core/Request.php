@@ -48,22 +48,20 @@ final class Request
                 fclose($stream);
             }
         }
+        $remoteAddress = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null;
 
         return new self(
             strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')),
             parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/',
             $body,
             $headers,
-            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
-            self::detectHttps($headers, $trustedProxies),
+            self::detectClientIp($headers, $remoteAddress, $trustedProxies),
+            self::detectHttps($headers, $remoteAddress, $trustedProxies),
         );
     }
 
-    /**
-     * @param array<string, string> $headers
-     * @param list<string> $trustedProxies
-     */
-    private static function detectHttps(array $headers, array $trustedProxies): bool
+    /** @param array<string, string> $headers */
+    private static function detectHttps(array $headers, ?string $remoteAddress, array $trustedProxies): bool
     {
         $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
         if ($https !== '' && $https !== 'off') {
@@ -76,13 +74,30 @@ final class Request
             return true;
         }
 
-        $remoteAddress = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
-        if ($remoteAddress === '' || !in_array($remoteAddress, $trustedProxies, true)) {
+        if (!self::isTrustedProxy($remoteAddress, $trustedProxies)) {
             return false;
         }
 
-        // Proxy/load-balancer TLS termination, when the immediate peer is trusted.
+        // Proxy/load-balancer TLS termination, common on shared hosting.
         return strtolower(trim(explode(',', $headers['x-forwarded-proto'] ?? '')[0])) === 'https';
+    }
+
+    /** @param array<string, string> $headers */
+    private static function detectClientIp(array $headers, ?string $remoteAddress, array $trustedProxies): ?string
+    {
+        if (!self::isTrustedProxy($remoteAddress, $trustedProxies)) {
+            return $remoteAddress;
+        }
+
+        $forwardedFor = trim(explode(',', $headers['x-forwarded-for'] ?? '')[0]);
+
+        return $forwardedFor !== '' ? $forwardedFor : $remoteAddress;
+    }
+
+    /** @param list<string> $trustedProxies */
+    private static function isTrustedProxy(?string $remoteAddress, array $trustedProxies): bool
+    {
+        return $remoteAddress !== null && in_array($remoteAddress, $trustedProxies, true);
     }
 
     public function header(string $name): ?string

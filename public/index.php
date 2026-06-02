@@ -54,13 +54,12 @@ try {
     }
     /** @var array<string, mixed> $security */
     $security = require $securityFile;
-    $request = Request::fromGlobals(
-        (int) $security['max_body_bytes'],
-        array_values(array_filter((array) ($security['trusted_proxies'] ?? []), 'is_string')),
-    );
+    $trustedProxies = array_values(array_filter(
+        (array) ($security['trusted_proxies'] ?? []),
+        static fn (mixed $proxy): bool => is_string($proxy) && trim($proxy) !== ''
+    ));
+    $request = Request::fromGlobals((int) $security['max_body_bytes'], $trustedProxies);
     $request->setAttribute('request_id', bin2hex(random_bytes(16)));
-    $database = Connection::getInstance();
-    $schemas = new SchemaRegistry($database);
 
     // Hardening configuration with backward-compatible defaults.
     $preAuthConfig = (array) ($security['pre_auth_rate_limit'] ?? ['enabled' => false]);
@@ -72,13 +71,18 @@ try {
     $storageDir = (string) ($preAuthConfig['storage_dir'] ?? (sys_get_temp_dir() . '/dbo_gateway_ratelimit'));
 
     $limiter = new FilesystemRateLimiter($storageDir);
+    (new MiddlewarePipeline([
+        new HttpsMiddleware((bool) ($security['require_https'] ?? true), (bool) ($security['dev_mode'] ?? false)),
+        new PreAuthRateLimitMiddleware($limiter, $preAuthConfig),
+    ]))->handle($request, static fn (Request $request): Response => new Response(['ok' => true]));
+
+    $database = Connection::getInstance();
+    $schemas = new SchemaRegistry($database);
     $demo = new PublicDemoService($demoConfig, $limiter);
 
     $pipeline = new MiddlewarePipeline([
-        new HttpsMiddleware((bool) ($security['require_https'] ?? true), (bool) ($security['dev_mode'] ?? false)),
         new RoutingMiddleware(new Router()),
         new JsonBodyLimitMiddleware((int) $security['max_body_bytes']),
-        new PreAuthRateLimitMiddleware($limiter, $preAuthConfig),
         new AuditMiddleware(new AuditLogService($database, $auditConfig)),
         new HmacAuthMiddleware(new HmacAuth(
             new ApiClientResolver($database, $security['client_secrets'], (bool) $security['allow_database_secrets']),

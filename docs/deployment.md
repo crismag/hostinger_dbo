@@ -32,11 +32,11 @@ php -S localhost:8000 -t public public/index.php
 
 ## HTTPS
 
-`require_https` defaults to `true`. Plaintext HTTP is rejected with `HTTPS_REQUIRED`, except for `127.0.0.1`/`::1` and when `dev_mode` is `true`. Detection honours `X-Forwarded-Proto` only when `REMOTE_ADDR` is listed in `trusted_proxies`, so set that list when running behind a TLS-terminating proxy or load balancer. Keep `require_https` on in production and serve the gateway only over TLS.
+`require_https` defaults to `true`. Plaintext HTTP is rejected with `HTTPS_REQUIRED`, except for `127.0.0.1`/`::1` and when `dev_mode` is `true`. If you terminate TLS at a proxy or load balancer, list that proxy's `REMOTE_ADDR` values in `trusted_proxies`; only trusted proxies may supply `X-Forwarded-Proto`, and only they can override the client IP with `X-Forwarded-For`. Keep `require_https` on in production and serve the gateway only over TLS.
 
 ## Rate-limit storage
 
-The pre-authentication and public-demo limiters store per-IP counters as local files. By default they live under the system temp directory; set `pre_auth_rate_limit.storage_dir` to a private, writable path if the temp directory is volatile or shared. The directory is created automatically and never needs to be web-accessible.
+The pre-authentication and public-demo limiters store per-IP counters as local files. By default they live under the system temp directory; set `pre_auth_rate_limit.storage_dir` to a private, writable path if the temp directory is volatile or shared. When running behind a proxy, set `trusted_proxies` so these counters key on the verified client IP instead of the proxy address. The directory is created automatically and never needs to be web-accessible.
 
 ## Scheduled cleanup
 

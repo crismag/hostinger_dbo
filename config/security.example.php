@@ -19,7 +19,7 @@ return [
     // Finding #7 — reject plaintext HTTP. Localhost and dev_mode are always exempt.
     'require_https' => true,
     'dev_mode' => false,
-    // Trust X-Forwarded-Proto only from these proxy IPs.
+    // Only these proxy IPs may supply forwarded client IP / scheme headers.
     'trusted_proxies' => [],
 
     // Finding #1 — IP-keyed abuse gate that runs before authentication. Filesystem-backed; never

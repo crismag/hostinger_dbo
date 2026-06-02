@@ -20,11 +20,11 @@ The server compares signatures with `hash_equals()`. Timestamp values must use U
 
 ## Transport security
 
-When `require_https` is enabled, `HttpsMiddleware` rejects plaintext HTTP with `HTTPS_REQUIRED` before any other processing. Detection uses `HTTPS`, `SERVER_PORT`, and `REQUEST_SCHEME`, and only trusts `X-Forwarded-Proto` when the immediate peer (`REMOTE_ADDR`) is listed in `trusted_proxies`. `127.0.0.1`/`::1` and `dev_mode` are exempt for local development.
+When `require_https` is enabled, `HttpsMiddleware` rejects plaintext HTTP with `HTTPS_REQUIRED` before any other processing. Detection uses `HTTPS`, `SERVER_PORT`, and `REQUEST_SCHEME` directly, and it honours `X-Forwarded-Proto` only when `REMOTE_ADDR` is listed in `trusted_proxies`. In that trusted-proxy mode, `Request::fromGlobals()` also resolves the client IP from `X-Forwarded-For`; otherwise it keeps `REMOTE_ADDR`. `127.0.0.1`/`::1` and `dev_mode` are exempt for local development.
 
 ## Pre-authentication abuse protection
 
-`PreAuthRateLimitMiddleware` runs before authentication and the audit wrapper. It is keyed by IP and backed by `FilesystemRateLimiter` (local files; no database, Redis, or extension), so invalid clients, bad signatures, and bot scanners are rejected with `RATE_LIMITED` (HTTP `429`) **without** a database read, client lookup, or audit write. It enforces both `minute_limit` and `hour_limit`. The authenticated per-client `RateLimitService` still applies afterwards.
+`PreAuthRateLimitMiddleware` runs before any PDO connection is opened, before authentication, and before the audit wrapper. It is keyed by IP and backed by `FilesystemRateLimiter` (local files; no database, Redis, or extension), so invalid clients, bad signatures, and bot scanners are rejected with `RATE_LIMITED` (HTTP `429`) **without** a database read, client lookup, or audit write. It enforces both `minute_limit` and `hour_limit`, using the verified forwarded client IP only when the immediate peer is in `trusted_proxies`. The authenticated per-client `RateLimitService` still applies afterwards.
 
 ## Unified authentication failures
 
