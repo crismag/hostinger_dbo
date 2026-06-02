@@ -76,6 +76,16 @@ try {
     }
     /** @var array<string, mixed> $security */
     $security = require $securityFile;
+
+    // Apply an environment profile (dev/demo/prod) when APP_ENV is set. Opt-in:
+    // with no APP_ENV, config/security.php is used unchanged.
+    $appEnv = getenv('APP_ENV');
+    if ($appEnv !== false && $appEnv !== '') {
+        $profilesFile = dirname(__DIR__) . '/config/profiles.php';
+        $profiles = is_readable($profilesFile) ? require $profilesFile : null;
+        $security = App\Config\Profiles::apply($security, (string) $appEnv, is_array($profiles) ? $profiles : null);
+    }
+
     $trustedProxies = array_values(array_filter(
         (array) ($security['trusted_proxies'] ?? []),
         static fn (mixed $proxy): bool => is_string($proxy) && trim($proxy) !== ''

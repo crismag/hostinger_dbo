@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No unreleased changes yet._
+
+## [0.3.0] - 2026-06-02
+
+### Added
+
+- **Multi-driver storage (mysql | sqlite)** — the gateway and installer now support SQLite alongside MySQL/MariaDB, selected via a `driver` key in `config/database.php`. A shared `App\Database\Dsn` factory builds the connection (SQLite gets `foreign_keys`/WAL/`busy_timeout` pragmas). Backward compatible: existing flat MySQL config still works.
+- **SQLite deployment support** — driver-specific schema files under `schema/sqlite/`; the installer is driver-aware (`sqlite_master` listing, schema path by driver, no `CREATE DATABASE`, a portable select-then-write permission upsert, and `pdo_sqlite` accepted in preflight). The full pipeline (auth, nonce, rate-limit, CRUD, LIKE, GROUP BY, audit) is verified on both drivers.
+- **`config/database.php` shape** — `driver` plus per-driver `mysql`/`sqlite` blocks; new env vars `DB_DRIVER`, `DB_SQLITE_PATH`.
+- **Environment profiles** — `config/profiles.php` (`dev`/`demo`/`prod`) deep-merged over `config/security.php`, selected by `APP_ENV`. Opt-in: with no `APP_ENV`, config is used unchanged. `App\Config\Profiles` performs the merge.
+- **Application Definition Framework** — a declarative `app.json` manifest (`App\Config\AppDefinition`) naming driver, database, entities, and services. `bin/install.php --app app.json` stands an app up end-to-end: gateway schema, the app's object schema (`data/schema.sql`), entity registration from `data/registry.json` (`Installer::registerEntities`, every identifier validated), and a scoped client. The manifest is an orchestration index; entity policies live in `registry.json`.
+- `tests/driver_matrix_smoke.php` — cross-driver parity test (SQLite always; MySQL when reachable).
+
+### Notes
+
+- SQLite database files live under `storage/` (outside the web root, `0600`).
+- Backward compatible: MySQL deployments and existing config files are unaffected.
+
+## [0.2.0] - 2026-06-02
+
 ### Added
 
 - **LIKE / search filters** — `select` accepts an optional `filters` array of `{field, op, value}` (operators `eq`, `like`), combined with the equality `where` via AND. `like` fields must be in a new registry `searchable` allowlist; values are bound parameters.
@@ -43,5 +63,7 @@ for controlled MySQL and MariaDB object access.
 - **Documentation** — README homepage plus guides for installation, security, API reference, architecture, database schema, deployment, and migration.
 - **Tests** — `tests/hardening_smoke.php` and `tests/gateway_smoke.php`.
 
-[Unreleased]: https://github.com/crismag/php-dbo-gateway/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/crismag/php-dbo-gateway/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/crismag/php-dbo-gateway/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/crismag/php-dbo-gateway/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/crismag/php-dbo-gateway/releases/tag/v0.1.0

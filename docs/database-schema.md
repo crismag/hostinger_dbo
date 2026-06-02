@@ -1,6 +1,6 @@
 # Database Schema
 
-The [installer](installation.md) loads these schema files automatically (skipping any tables that already exist). To load them manually, import `schema/security_tables.sql` first, then `schema/example_objects.sql`.
+The [installer](installation.md) loads these schema files automatically (skipping any tables that already exist), choosing the driver-appropriate variant: MySQL uses `schema/*.sql`; SQLite uses `schema/sqlite/*.sql` (same tables/columns, SQLite DDL, `schema_json` stored as TEXT). To load them manually, import `security_tables.sql` first, then `example_objects.sql` from the matching directory.
 
 ## Security and registry tables
 

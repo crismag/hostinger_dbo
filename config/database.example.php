@@ -61,11 +61,22 @@ $getEnvAny = static function (array $names, string $default = '') use ($getEnv):
     return $default;
 };
 
+// Select the storage driver: 'mysql' (default) or 'sqlite'. Each driver's
+// settings live in its own block, so switching drivers is a one-line change.
 return [
-    'host' => $getEnvAny(['DB_HOST'], 'localhost'),
-    'port' => $getEnvAny(['DB_PORT'], '3306'),
-    'database' => $getEnvAny(['DB_NAME', 'DB_DATABASE'], 'dbo_gateway'),
-    'username' => $getEnvAny(['DB_USER', 'DB_USERNAME'], 'root'),
-    'password' => $getEnvAny(['DB_PASSWORD']),
-    'charset' => $getEnvAny(['DB_CHARSET'], 'utf8mb4'),
+    'driver' => $getEnvAny(['DB_DRIVER'], 'mysql'),
+
+    'mysql' => [
+        'host' => $getEnvAny(['DB_HOST'], 'localhost'),
+        'port' => $getEnvAny(['DB_PORT'], '3306'),
+        'database' => $getEnvAny(['DB_NAME', 'DB_DATABASE'], 'dbo_gateway'),
+        'username' => $getEnvAny(['DB_USER', 'DB_USERNAME'], 'root'),
+        'password' => $getEnvAny(['DB_PASSWORD']),
+        'charset' => $getEnvAny(['DB_CHARSET'], 'utf8mb4'),
+    ],
+
+    // For driver=sqlite. Keep the file OUTSIDE the web root and 0600.
+    'sqlite' => [
+        'path' => $getEnvAny(['DB_SQLITE_PATH'], dirname(__DIR__) . '/storage/gateway.sqlite'),
+    ],
 ];

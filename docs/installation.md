@@ -245,6 +245,49 @@ The config files are PHP arrays, which fail closed if ever served and work on ev
 
 Environment values take precedence over `.env`. This is a **hybrid** model: file-based by default (best for shared hosting), environment-first when you set the variables (best for VPS, containers, and CI). Choose one consistently per environment.
 
+### Storage driver (MySQL or SQLite)
+
+`config/database.php` selects the backend with a `driver` key (`mysql` default, or `sqlite`):
+
+```php
+return [
+    'driver' => 'sqlite',                                  // or 'mysql'
+    'mysql'  => ['host' => '127.0.0.1', 'port' => '3306', 'database' => '...', 'username' => '...', 'password' => '...', 'charset' => 'utf8mb4'],
+    'sqlite' => ['path' => __DIR__ . '/../storage/gateway.sqlite'],  // keep outside the web root, 0600
+];
+```
+
+The installer asks for the driver (or set `DB_DRIVER=sqlite DB_SQLITE_PATH=...`). For SQLite it loads `schema/sqlite/*.sql` and creates the database file automatically — no server, no `CREATE DATABASE`. The query layer (CRUD, LIKE, GROUP BY, aggregates) and all security behave identically on both drivers.
+
+### Environment profiles (`APP_ENV`)
+
+`config/profiles.php` defines `dev` / `demo` / `prod` overrides that are deep-merged over `config/security.php` when `APP_ENV` is set. Profiles are **opt-in** — with no `APP_ENV`, the written config is used unchanged.
+
+| Profile | require_https | dev_mode | audit | public_demo |
+| --- | --- | --- | --- | --- |
+| `prod` | on | off | authenticated_only | off |
+| `demo` | on | off | sampled | **on** |
+| `dev` | off | on | all | inherited |
+
+```bash
+APP_ENV=prod php -S 0.0.0.0:8000 -t public public/index.php   # or set APP_ENV in your vhost/FPM env
+```
+
+### Install an application from a manifest
+
+An application can be defined declaratively in an `app.json` and installed in one command:
+
+```json
+{ "app": "ticketdesk", "driver": "sqlite", "database": "storage/ticketdesk.sqlite",
+  "entities": ["tickets", "customers"], "services": ["reports"] }
+```
+
+```bash
+bin/install.php --app path/to/app.json
+```
+
+This loads the gateway schema, imports the app's object tables (`data/schema.sql`), registers the listed entities from `data/registry.json` (one policy object per entity), and creates a scoped client. The manifest names *what* the app uses; the per-entity field/filter/searchable/groupable/aggregatable policies live in `registry.json`.
+
 ## Validation Steps
 
 ### 1. Health check
