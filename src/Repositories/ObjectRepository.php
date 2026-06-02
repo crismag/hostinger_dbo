@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file ObjectRepository.php
+ *
+ * Executes registry-approved CRUD statements with quoted identifiers and prepared values.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: Constructor dependencies and typed method arguments supplied by the application.
+ * Outputs: Typed return values, domain exceptions, or persisted side effects documented by each method.
+ * Usage: Loaded through the App\ namespace autoloader and instantiated by the gateway composition root.
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 namespace App\Repositories;
@@ -18,7 +30,10 @@ final class ObjectRepository extends BaseRepository
         parent::__construct($database);
     }
 
-    /** @param array<string, mixed> $request @return list<array<string, mixed>> */
+    /**
+     * @param array<string, mixed> $request
+     * @return list<array<string, mixed>> Rows matching the validated request.
+     */
     public function select(string $entity, array $request): array
     {
         $schema = $this->schemas->get($entity);
@@ -39,7 +54,10 @@ final class ObjectRepository extends BaseRepository
         return $statement->fetchAll();
     }
 
-    /** @param array<string, mixed> $request @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $request
+     * @return array<string, int> Identifier generated for the inserted row.
+     */
     public function insert(string $entity, array $request): array
     {
         $schema = $this->schemas->get($entity);
@@ -57,7 +75,10 @@ final class ObjectRepository extends BaseRepository
         return [$schema->primaryKey => (int) $this->database->lastInsertId()];
     }
 
-    /** @param array<string, mixed> $request @return array{affected_rows:int} */
+    /**
+     * @param array<string, mixed> $request
+     * @return array{affected_rows:int} Number of rows changed by the validated mutation.
+     */
     public function update(string $entity, array $request): array
     {
         $schema = $this->schemas->get($entity);
@@ -80,7 +101,10 @@ final class ObjectRepository extends BaseRepository
         return ['affected_rows' => $statement->rowCount()];
     }
 
-    /** @param array<string, mixed> $request @return array{affected_rows:int} */
+    /**
+     * @param array<string, mixed> $request
+     * @return array{affected_rows:int} Number of rows deleted by the validated mutation.
+     */
     public function delete(string $entity, array $request): array
     {
         $schema = $this->schemas->get($entity);

@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file PermissionService.php
+ *
+ * Enforces database-backed client grants for entities, actions, fields, filters, and result limits.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: Constructor dependencies and typed method arguments supplied by the application.
+ * Outputs: Typed return values, domain exceptions, or persisted side effects documented by each method.
+ * Usage: Loaded through the App\ namespace autoloader and instantiated by the gateway composition root.
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 namespace App\Services;

@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file install.php
+ *
+ * Provides the one-time browser installer for shared-hosting deployments without shell access.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: HTTP request data plus runtime configuration files.
+ * Outputs: Emits an HTTP response.
+ * Usage: Browse to /install.php once over HTTPS, complete setup, then remove or block this file.
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 /**

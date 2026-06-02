@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file NonceStore.php
+ *
+ * Persists accepted client nonces so a signed request cannot be replayed inside the authentication window.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: Constructor dependencies and typed method arguments supplied by the application.
+ * Outputs: Typed return values, domain exceptions, or persisted side effects documented by each method.
+ * Usage: Loaded through the App\ namespace autoloader and instantiated by the gateway composition root.
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 namespace App\Security;
@@ -15,6 +27,11 @@ final class NonceStore
     {
     }
 
+    /**
+     * Attempts to reserve a nonce for one client.
+     *
+     * @return bool True for a newly accepted nonce; false when the unique key detects a replay.
+     */
     public function claim(int $clientId, string $nonce, DateTimeImmutable $timestamp): bool
     {
         try {

@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file security.example.php
+ *
+ * Provides the copyable security configuration template consumed by the API gateway.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: Deployment-specific values edited by the operator after copying this template.
+ * Outputs: Returns a PHP configuration array.
+ * Usage: Copy to config/security.php and customize deployment values.
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 /** Copy to security.php and provide secrets through the environment where possible. */

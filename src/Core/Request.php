@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * @file Request.php
+ *
+ * Captures HTTP request data, trusted-proxy-derived transport metadata, parsed JSON, and middleware attributes.
+ *
+ * Creation Date: 2026-06-02
+ * Inputs: Constructor dependencies and typed method arguments supplied by the application.
+ * Outputs: Typed return values, domain exceptions, or persisted side effects documented by each method.
+ * Usage: Loaded through the App\ namespace autoloader and instantiated by the gateway composition root.
+ * Author: Cris Magalang
+ * Code Assistants and generators: Codex and Claude code
+ */
 declare(strict_types=1);
 
 namespace App\Core;
@@ -23,7 +35,11 @@ final class Request
     ) {
     }
 
-    /** @param list<string> $trustedProxies */
+    /**
+     * Builds a request from PHP globals and trusts forwarded metadata only from configured proxies.
+     *
+     * @param list<string> $trustedProxies
+     */
     public static function fromGlobals(int $maxBodyBytes = 65536, array $trustedProxies = []): self
     {
         $headers = [];
