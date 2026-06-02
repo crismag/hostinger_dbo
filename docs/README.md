@@ -9,6 +9,7 @@ Documentation for **php-dbo-gateway** — a secure, dependency-free PHP gateway 
 | [Installation Guide](installation.md) | Requirements, shared-hosting & VPS installs, the bundled installer, manual setup, configuration, validation, and troubleshooting |
 | [Security Guide](security-design.md) | HMAC signing, transport security, pre-auth abuse protection, replay protection, permissions, tenant scope, the mutation guard, the public demo, and auditing |
 | [API Reference](api-reference.md) | Routes, headers, request/response shapes, and the full error-code table |
+| [Service Authoring](service-authoring.md) | How to write named service operations (joins/reports/transactions) safely |
 | [Architecture](architecture.md) | The request pipeline and the design constraints that keep the gateway small and dependency-free |
 | [Database Schema](database-schema.md) | Security/registry tables and how to register your own entities |
 | [Deployment](deployment.md) | HTTPS and proxy configuration, rate-limit storage, audit volume, and scheduled cleanup |

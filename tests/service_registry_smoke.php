@@ -47,6 +47,7 @@ $services = ['reports' => ['tenant_summary' => ['handler' => 'reports.tenant_sum
 $clients = [
     'svc-client' => ['enforced_filters' => [], 'services' => ['reports.tenant_summary']],
     'no-grant' => ['enforced_filters' => []],
+    'scoped-client' => ['enforced_filters' => ['tenant_id' => 'acme'], 'services' => ['reports.tenant_summary']],
 ];
 $controller = new ServiceController(new OperationRegistry(), $services, $clients, $pdo);
 
@@ -84,6 +85,27 @@ expectError($controller, 'reports', 'no_such_op', ['limit' => 1], 'svc-client', 
 expectError($controller, 'billing', 'run', ['limit' => 1], 'svc-client', 'SERVICE_NOT_FOUND');
 expectError($controller, 'reports', 'tenant_summary', ['bogus' => 1], 'svc-client', 'SERVICE_INPUT_INVALID');
 expectError($controller, 'reports', 'tenant_summary', ['limit' => 99999], 'svc-client', 'SERVICE_INPUT_INVALID');
+
+// Tenant scope: a client scoped to 'acme' must NEVER see globex in service results.
+$scoped = run($controller, 'reports', 'tenant_summary', ['limit' => 10], 'scoped-client');
+$tenants = array_column($scoped->payload['data'], 'tenant_id');
+$acme = null;
+foreach ($scoped->payload['data'] as $row) { if ($row['tenant_id'] === 'acme') { $acme = [(int) $row['projects'], (int) $row['users']]; } }
+check('scoped client sees only its tenant', $tenants === ['acme'] && $acme === [3, 2], 'tenants=' . json_encode($tenants));
+check('foreign tenant (globex) never leaks', !in_array('globex', $tenants, true));
+
+// scopedWhere helper: merge and conflict behaviour.
+$ctxScoped = new App\Services\Operations\ServiceContext($pdo, ['id' => 1, 'client_id' => 'scoped-client', 'secret' => 'x'], ['tenant_id' => 'acme']);
+check('scopedWhere merges enforced filter', $ctxScoped->scopedWhere(['status' => 'open']) === ['status' => 'open', 'tenant_id' => 'acme']);
+try {
+    $ctxScoped->scopedWhere(['tenant_id' => 'globex']);
+    check('scopedWhere rejects conflict', false, 'no exception');
+} catch (ApiException $e) {
+    check('scopedWhere rejects conflict', $e->errorCode === 'TENANT_SCOPE_VIOLATION', 'got ' . $e->errorCode);
+}
+$ctxUnscoped = new App\Services\Operations\ServiceContext($pdo, ['id' => 1, 'client_id' => 'x', 'secret' => 'x'], []);
+$p = [];
+check('unscoped bindScopedWhere is empty', $ctxUnscoped->bindScopedWhere([], $p, 'p') === '' && $p === []);
 
 // The allowlist itself rejects keys not in the compile-time map.
 try {
