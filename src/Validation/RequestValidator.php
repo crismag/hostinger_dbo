@@ -81,7 +81,7 @@ final class RequestValidator
     private function map(array $body, string $key, bool $required): array
     {
         $value = $body[$key] ?? [];
-        if (!is_array($value) || array_is_list($value) || ($required && $value === [])) {
+        if (!is_array($value) || ($value !== [] && array_is_list($value)) || ($required && $value === [])) {
             throw new ApiException('REQUEST_INVALID_' . strtoupper($key), $key . ' must be a non-empty JSON object');
         }
         foreach ($value as $item) {
