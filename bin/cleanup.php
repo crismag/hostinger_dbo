@@ -30,6 +30,10 @@ $security = is_readable($securityFile) ? (array) require $securityFile : [];
 $retentionDays = (int) ($security['audit']['retention_days'] ?? 90);
 $storageDir = $security['pre_auth_rate_limit']['storage_dir'] ?? (sys_get_temp_dir() . '/dbo_gateway_ratelimit');
 
+if (!is_string($storageDir)) {
+    throw new \RuntimeException('pre_auth_rate_limit.storage_dir must be a string when set');
+}
+
 $database = Connection::getInstance();
 $now = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
 
