@@ -52,28 +52,33 @@ final class PublicDemoService
             throw new ApiException('PERMISSION_DENIED', 'Demo access is limited to select', 403);
         }
 
-        $allowedFields = isset($rules['allowed_fields']) && is_array($rules['allowed_fields']) ? $rules['allowed_fields'] : null;
+        $allowedFields = $rules['allowed_fields'] ?? null;
+        if (!is_array($allowedFields) || $allowedFields === []) {
+            // Fail closed: demo interfaces must explicitly declare what can be exposed.
+            throw new ApiException('PERMISSION_DENIED', 'Demo access is not available for this operation', 403);
+        }
         $fields = (isset($body['fields']) && is_array($body['fields'])) ? $body['fields'] : $allowedFields;
-        if ($allowedFields !== null && is_array($fields)) {
-            foreach ($fields as $field) {
-                if (!in_array($field, $allowedFields, true)) {
-                    throw new ApiException('REQUEST_FIELD_NOT_ALLOWED', 'Demo field is not allowed: ' . (string) $field, 403);
-                }
+        foreach ($fields as $field) {
+            if (!in_array($field, $allowedFields, true)) {
+                throw new ApiException('REQUEST_FIELD_NOT_ALLOWED', 'Demo field is not allowed: ' . (string) $field, 403);
             }
         }
 
         $where = (isset($body['where']) && is_array($body['where'])) ? $body['where'] : [];
-        $allowedFilters = isset($rules['allowed_filters']) && is_array($rules['allowed_filters']) ? $rules['allowed_filters'] : null;
-        if ($allowedFilters !== null) {
-            foreach (array_keys($where) as $field) {
-                if (!in_array($field, $allowedFilters, true)) {
-                    throw new ApiException('REQUEST_FIELD_NOT_ALLOWED', 'Demo filter is not allowed: ' . (string) $field, 403);
-                }
+        $allowedFilters = $rules['allowed_filters'] ?? null;
+        if (!is_array($allowedFilters)) {
+            $allowedFilters = [];
+        }
+        foreach (array_keys($where) as $field) {
+            if (!in_array($field, $allowedFilters, true)) {
+                throw new ApiException('REQUEST_FIELD_NOT_ALLOWED', 'Demo filter is not allowed: ' . (string) $field, 403);
             }
         }
         // Server-mandated filters always win; the caller cannot remove or override them.
-        foreach (($rules['required_where'] ?? []) as $field => $value) {
-            $where[$field] = $value;
+        if (isset($rules['required_where']) && is_array($rules['required_where'])) {
+            foreach ($rules['required_where'] as $field => $value) {
+                $where[$field] = $value;
+            }
         }
 
         $maxLimit = (int) ($rules['max_limit'] ?? 5);
