@@ -40,17 +40,17 @@ spl_autoload_register(static function (string $class): void {
     }
 });
 
-$request = Request::fromGlobals();
-$request->setAttribute('request_id', bin2hex(random_bytes(16)));
-
+$request = null;
 try {
-    $database = Connection::getInstance();
     $securityFile = dirname(__DIR__) . '/config/security.php';
     if (!is_readable($securityFile)) {
         throw new RuntimeException('Security configuration not found. Copy config/security.example.php to config/security.php.');
     }
     /** @var array{timestamp_window_seconds:int,max_body_bytes:int,max_requests_per_minute:int,client_secrets:array<string,string>,allow_database_secrets:bool} $security */
     $security = require $securityFile;
+    $request = Request::fromGlobals($security['max_body_bytes']);
+    $request->setAttribute('request_id', bin2hex(random_bytes(16)));
+    $database = Connection::getInstance();
     $schemas = new SchemaRegistry($database);
     $pipeline = new MiddlewarePipeline([
         new AuditMiddleware(new AuditLogService($database)),
@@ -68,8 +68,8 @@ try {
     $controller = new ObjectController(new ObjectService(new ObjectRepository($database, new QueryBuilder(), $schemas)));
     $pipeline->handle($request, $controller->handle(...))->emit();
 } catch (ApiException $exception) {
-    Response::error($exception, (string) $request->attribute('request_id'))->emit();
+    Response::error($exception, $request !== null ? (string) $request->attribute('request_id') : '')->emit();
 } catch (Throwable $exception) {
     error_log($exception->__toString());
-    Response::error(new ApiException('INTERNAL_ERROR', 'Internal server error', 500), (string) $request->attribute('request_id'))->emit();
+    Response::error(new ApiException('INTERNAL_ERROR', 'Internal server error', 500), $request !== null ? (string) $request->attribute('request_id') : '')->emit();
 }
