@@ -73,7 +73,12 @@ final class FilesystemRateLimiter
 
     private function maybeCleanup(): void
     {
-        if (random_int(1, 200) !== 1) {
+        try {
+            if (random_int(1, 200) !== 1) {
+                return;
+            }
+        } catch (\Throwable) {
+            // Fail open if randomness is unavailable.
             return;
         }
         $cutoff = time() - self::WINDOWS['day'];
