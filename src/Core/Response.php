@@ -24,9 +24,10 @@ final class Response
     {
     }
 
-    public static function success(mixed $data, string $requestId, int $status = 200): self
+    /** @param array<string, mixed> $meta Extra meta merged alongside the request id. */
+    public static function success(mixed $data, string $requestId, int $status = 200, array $meta = []): self
     {
-        return new self(['ok' => true, 'data' => $data, 'meta' => ['request_id' => $requestId]], $status);
+        return new self(['ok' => true, 'data' => $data, 'meta' => ['request_id' => $requestId] + $meta], $status);
     }
 
     public static function error(ApiException $error, string $requestId): self

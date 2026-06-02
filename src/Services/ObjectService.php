@@ -30,7 +30,9 @@ final class ObjectService
     public function execute(EntitySchema $schema, string $action, array $request): array
     {
         return match ($action) {
-            'select' => $this->objects->select($schema->entity, $request),
+            'select' => ($request['aggregate'] ?? false) === true
+                ? $this->objects->aggregate($schema->entity, $request)
+                : $this->objects->select($schema->entity, $request),
             'insert' => $this->objects->insert($schema->entity, $request),
             'update' => $this->objects->update($schema->entity, $request),
             'delete' => $this->objects->delete($schema->entity, $request),

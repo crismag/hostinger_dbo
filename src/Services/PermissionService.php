@@ -36,15 +36,44 @@ final class PermissionService
             throw new ApiException('PERMISSION_DENIED', 'Client is not allowed to perform this action', 403);
         }
         $fields = match ($action) {
-            'select' => $request['fields'],
+            'select' => $this->selectOutputFields($request),
             'insert', 'update' => array_keys($request['data']),
             default => [],
         };
         $this->assertSubset($fields, $this->decodeList($permission['allowed_fields_json'] ?? null), 'field');
-        $this->assertSubset(array_keys($request['where'] ?? []), $this->decodeList($permission['allowed_filter_fields_json'] ?? null), 'filter');
-        if ($action === 'select' && $request['limit'] > (int) $permission['max_rows_per_select']) {
+
+        // Filter-field permission covers both equality `where` keys and operator `filters`.
+        $filterFields = array_keys($request['where'] ?? []);
+        foreach ($request['filters'] ?? [] as $filter) {
+            $filterFields[] = $filter['field'];
+        }
+        $this->assertSubset($filterFields, $this->decodeList($permission['allowed_filter_fields_json'] ?? null), 'filter');
+
+        if ($action === 'select' && ($request['limit'] ?? 0) > (int) $permission['max_rows_per_select']) {
             throw new ApiException('PERMISSION_LIMIT_EXCEEDED', 'Requested limit exceeds the client permission', 403);
         }
+    }
+
+    /**
+     * Output columns a select exposes: plain `fields`, or for an aggregate query
+     * the group-by columns plus each aggregate's target field.
+     *
+     * @param array<string, mixed> $request
+     * @return list<string>
+     */
+    private function selectOutputFields(array $request): array
+    {
+        if (($request['aggregate'] ?? false) !== true) {
+            return $request['fields'];
+        }
+        $fields = $request['group_by'];
+        foreach ($request['aggregates'] as $aggregate) {
+            if ($aggregate['field'] !== null) {
+                $fields[] = $aggregate['field'];
+            }
+        }
+
+        return $fields;
     }
 
     /** @return list<string>|null */

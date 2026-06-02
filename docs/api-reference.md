@@ -143,6 +143,53 @@ Request bodies must be JSON **objects** (not arrays). Only registry-allowlisted 
 {"ok":true,"data":{"affected_rows":1},"meta":{"request_id":"..."}}
 ```
 
+## Filtering with operators (LIKE)
+
+Beyond the equality `where` object, `select` accepts an optional **`filters`** array for operator predicates. Each entry is `{field, op, value}`; `where` and `filters` combine with **AND**.
+
+```json
+{
+  "fields":  ["id", "title", "status"],
+  "where":   { "status": "open" },
+  "filters": [ { "field": "title", "op": "like", "value": "%login%" } ],
+  "limit": 20
+}
+```
+
+- **Operators:** `eq` (equality) and `like` (pattern match). Unknown operators return `REQUEST_INVALID_OPERATOR`.
+- **`like`** requires the field to be in the entity's registry **`searchable`** allowlist, else `REQUEST_FIELD_NOT_SEARCHABLE`. The caller supplies the pattern (`%`, `_`); the value is bound as a parameter, so it cannot inject SQL.
+- Client filter-field permissions apply to `filters` fields just as they do to `where` keys.
+
+## Aggregation (GROUP BY)
+
+`select` performs an aggregate query when **`group_by`** and/or **`aggregates`** are present. The response rows contain the group-by columns plus the aggregate aliases (not entity rows).
+
+```json
+{
+  "group_by":   ["status"],
+  "aggregates": [ { "fn": "sum", "field": "total_amount", "as": "revenue" },
+                  { "fn": "count", "as": "orders" } ],
+  "where":      { "tenant_id": "tenant_001" },
+  "order_by":   "revenue", "order_dir": "desc",
+  "limit": 50
+}
+```
+→ `SELECT status, SUM(total_amount) AS revenue, COUNT(*) AS orders FROM … WHERE tenant_id = ? GROUP BY status ORDER BY revenue DESC LIMIT …`
+
+- **Functions:** `count, sum, avg, min, max`. `count` may omit `field` (→ `COUNT(*)`); the others require one. Unknown functions return `REQUEST_INVALID_AGGREGATE`.
+- **Registry allowlists:** `group_by` fields must be in **`groupable`**; aggregate target fields must be in **`aggregatable`**. Aliases (`as`) must match `^[A-Za-z_][A-Za-z0-9_]*$`.
+- **`order_by`** may reference a group-by column or an aggregate alias only.
+- `where`/`filters` apply **before** grouping, so tenant `enforced_filters` keep aggregates scoped (a tenant-scoped client only ever aggregates its own rows).
+- Authorized by the same `can_select` grant; aggregate target and group-by fields are also checked against the client's allowed-fields. No `HAVING` (post-aggregation filtering belongs in a service operation).
+
+## Response meta
+
+Successful responses include `meta.request_id` plus `operation`, `entity`, and `count` (number of returned rows for select/aggregate, or affected rows for mutations):
+
+```json
+{"ok":true,"data":[…],"meta":{"request_id":"…","operation":"select","entity":"tickets","count":10}}
+```
+
 ## Public demo (optional, unsigned)
 
 When `public_demo` is enabled, the `select` route may be called **without** signature headers — but only for explicitly configured demo interfaces. Such requests are read-only, hard-capped (`max_limit`), restricted to allowlisted fields/filters, and have mandatory `required_where` filters injected (e.g. `is_demo = 1`) that the caller cannot remove. Everything else is denied with `PERMISSION_DENIED`. Demo callers are rate-limited per IP per minute/hour/day.
@@ -211,6 +258,12 @@ Authorization, validation & data:
 | `REQUEST_INVALID_ORDER` | 400 | `order_by`/`order_dir` invalid |
 | `REQUEST_INVALID_PAGINATION` | 400 | `limit`/`offset` invalid |
 | `REQUEST_INVALID_VALUE` | 400 | A bound value is nested or not a scalar |
+| `REQUEST_INVALID_OPERATOR` | 400 | Unknown filter operator (only `eq`, `like`) |
+| `REQUEST_FIELD_NOT_SEARCHABLE` | 400 | `like` used on a field not in `searchable` |
+| `REQUEST_FIELD_NOT_GROUPABLE` | 400 | `group_by` field not in `groupable` |
+| `REQUEST_FIELD_NOT_AGGREGATABLE` | 400 | aggregate target field not in `aggregatable` |
+| `REQUEST_INVALID_AGGREGATE` | 400 | unknown aggregate function or malformed aggregate |
+| `REQUEST_INVALID_ALIAS` | 400 | aggregate alias is not a safe identifier |
 | `OBJECT_CONFLICT` | 409 | Database constraint violation (e.g. duplicate unique key) |
 | `INTERNAL_ERROR` | 500 | Unexpected server error (logged, not detailed to the caller) |
 

@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes yet._
+### Added
+
+- **LIKE / search filters** — `select` accepts an optional `filters` array of `{field, op, value}` (operators `eq`, `like`), combined with the equality `where` via AND. `like` fields must be in a new registry `searchable` allowlist; values are bound parameters.
+- **GROUP BY + aggregates** — `select` performs an aggregate query when `group_by`/`aggregates` are present. Functions: `count`, `sum`, `avg`, `min`, `max`. New registry allowlists `groupable` and `aggregatable`; aliases validated as safe identifiers; `where`/`filters` apply before grouping so tenant scope still constrains aggregates.
+- **Response meta** now includes `operation`, `entity`, and `count` alongside `request_id`.
+- New validation error codes: `REQUEST_INVALID_OPERATOR`, `REQUEST_FIELD_NOT_SEARCHABLE`, `REQUEST_FIELD_NOT_GROUPABLE`, `REQUEST_FIELD_NOT_AGGREGATABLE`, `REQUEST_INVALID_AGGREGATE`, `REQUEST_INVALID_ALIAS`.
+- `tests/query_features_smoke.php` integration test for the new controls.
+
+### Notes
+
+- All additions keep the security model: identifiers are registry-allowlisted, values are parameter-bound, and no raw SQL fragments are accepted. JOINs, multi-table composition, and transactions remain out of scope by design (they belong in named service operations).
+- Backward compatible: existing `select/insert/update/delete` requests are unaffected; entities without the new registry keys simply cannot use the new controls.
 
 ## [0.1.0] - 2026-06-02
 

@@ -36,7 +36,12 @@ final class ObjectController
         $validated = $request->attribute('validated');
         $action = (string) $request->attribute('action');
         $status = $action === 'insert' ? 201 : 200;
+        $data = $this->objects->execute($schema, $action, $validated);
+        $count = is_array($data) && array_is_list($data)
+            ? count($data)
+            : (is_array($data) && isset($data['affected_rows']) ? (int) $data['affected_rows'] : 1);
+        $meta = ['operation' => $action, 'entity' => $schema->entity, 'count' => $count];
 
-        return Response::success($this->objects->execute($schema, $action, $validated), (string) $request->attribute('request_id'), $status);
+        return Response::success($data, (string) $request->attribute('request_id'), $status, $meta);
     }
 }

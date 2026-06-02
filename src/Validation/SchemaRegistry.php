@@ -57,13 +57,23 @@ final class SchemaRegistry
             self::stringList($schema, 'updatable'),
             self::stringList($schema, 'filterable'),
             self::stringList($schema, 'orderable'),
+            self::stringList($schema, 'searchable', true),
+            self::stringList($schema, 'groupable', true),
+            self::stringList($schema, 'aggregatable', true),
         );
     }
 
-    /** @param array<string, mixed> $schema @return list<string> */
-    private static function stringList(array $schema, string $key): array
+    /**
+     * @param array<string, mixed> $schema
+     * @param bool $optional When true, a missing key yields an empty list (backward compatible).
+     * @return list<string>
+     */
+    private static function stringList(array $schema, string $key, bool $optional = false): array
     {
         $values = $schema[$key] ?? null;
+        if ($values === null && $optional) {
+            return [];
+        }
         if (!is_array($values) || !array_is_list($values)) {
             throw new ApiException('SCHEMA_INVALID', 'Entity schema is invalid', 500);
         }

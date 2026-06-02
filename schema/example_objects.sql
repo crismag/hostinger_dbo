@@ -38,12 +38,18 @@ INSERT INTO api_entities (entity_name, table_name, primary_key_name, schema_json
     'insertable', JSON_ARRAY('tenant_id', 'name', 'status', 'description', 'is_demo'),
     'updatable', JSON_ARRAY('name', 'status', 'description'),
     'filterable', JSON_ARRAY('id', 'tenant_id', 'status', 'is_demo'),
-    'orderable', JSON_ARRAY('id', 'created_at', 'updated_at')
+    'orderable', JSON_ARRAY('id', 'created_at', 'updated_at'),
+    'searchable', JSON_ARRAY('name', 'description'),
+    'groupable', JSON_ARRAY('status', 'tenant_id', 'is_demo'),
+    'aggregatable', JSON_ARRAY('id')
 )),
 ('users', 'users', 'id', JSON_OBJECT(
     'fields', JSON_ARRAY('id', 'tenant_id', 'name', 'email', 'status', 'created_at', 'updated_at'),
     'insertable', JSON_ARRAY('tenant_id', 'name', 'email', 'status'),
     'updatable', JSON_ARRAY('name', 'email', 'status'),
     'filterable', JSON_ARRAY('id', 'tenant_id', 'email', 'status'),
-    'orderable', JSON_ARRAY('id', 'created_at', 'updated_at')
+    'orderable', JSON_ARRAY('id', 'created_at', 'updated_at'),
+    'searchable', JSON_ARRAY('name', 'email'),
+    'groupable', JSON_ARRAY('status', 'tenant_id'),
+    'aggregatable', JSON_ARRAY('id')
 ));

@@ -27,6 +27,9 @@ final class EntitySchema
      * @param list<string> $updatable
      * @param list<string> $filterable
      * @param list<string> $orderable
+     * @param list<string> $searchable    fields permitted in LIKE filters
+     * @param list<string> $groupable     fields permitted in GROUP BY
+     * @param list<string> $aggregatable  fields permitted as aggregate targets
      */
     public function __construct(
         public readonly string $entity,
@@ -37,8 +40,11 @@ final class EntitySchema
         public readonly array $updatable,
         public readonly array $filterable,
         public readonly array $orderable,
+        public readonly array $searchable = [],
+        public readonly array $groupable = [],
+        public readonly array $aggregatable = [],
     ) {
-        foreach (array_merge([$table, $primaryKey], $fields, $insertable, $updatable, $filterable, $orderable) as $identifier) {
+        foreach (array_merge([$table, $primaryKey], $fields, $insertable, $updatable, $filterable, $orderable, $searchable, $groupable, $aggregatable) as $identifier) {
             if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $identifier)) {
                 throw new ApiException('SCHEMA_INVALID_IDENTIFIER', 'Entity registry contains an invalid identifier', 500);
             }

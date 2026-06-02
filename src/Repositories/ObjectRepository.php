@@ -38,11 +38,41 @@ final class ObjectRepository extends BaseRepository
     {
         $schema = $this->schemas->get($entity);
         $parameters = [];
-        $where = $this->queryBuilder->where($request['where'], $parameters);
+        $where = $this->queryBuilder->filterClause($request['where'], $request['filters'] ?? [], $parameters);
         $fields = implode(', ', array_map($this->queryBuilder->identifier(...), $request['fields']));
         $sql = sprintf('SELECT %s FROM %s%s ORDER BY %s %s LIMIT :limit OFFSET :offset', $fields,
             $this->queryBuilder->identifier($schema->table), $where,
             $this->queryBuilder->identifier($request['orderBy']), strtoupper($request['orderDir']));
+        $statement = $this->database->prepare($sql);
+        foreach ($parameters as $key => $value) {
+            $statement->bindValue($key, $value);
+        }
+        $statement->bindValue(':limit', $request['limit'], PDO::PARAM_INT);
+        $statement->bindValue(':offset', $request['offset'], PDO::PARAM_INT);
+        $statement->execute();
+
+        return $statement->fetchAll();
+    }
+
+    /**
+     * Executes a registry-approved GROUP BY / aggregate query. Identifiers come
+     * only from the validated request; all filter values are bound parameters.
+     *
+     * @param array<string, mixed> $request
+     * @return list<array<string, mixed>> Aggregated rows.
+     */
+    public function aggregate(string $entity, array $request): array
+    {
+        $schema = $this->schemas->get($entity);
+        $parameters = [];
+        $where = $this->queryBuilder->filterClause($request['where'], $request['filters'] ?? [], $parameters);
+        $built = $this->queryBuilder->aggregateSelect($request['group_by'], $request['aggregates']);
+        $order = '';
+        if ($request['orderBy'] !== null) {
+            $order = ' ORDER BY ' . $this->queryBuilder->identifier($request['orderBy']) . ' ' . strtoupper($request['orderDir']);
+        }
+        $sql = sprintf('SELECT %s FROM %s%s%s%s LIMIT :limit OFFSET :offset',
+            $built['select'], $this->queryBuilder->identifier($schema->table), $where, $built['group'], $order);
         $statement = $this->database->prepare($sql);
         foreach ($parameters as $key => $value) {
             $statement->bindValue($key, $value);

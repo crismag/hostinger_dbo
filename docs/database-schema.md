@@ -25,8 +25,17 @@ The `projects` registry includes this policy shape (the `is_demo` column flags r
   "insertable": ["tenant_id", "name", "status", "description", "is_demo"],
   "updatable": ["name", "status", "description"],
   "filterable": ["id", "tenant_id", "status", "is_demo"],
-  "orderable": ["id", "created_at", "updated_at"]
+  "orderable": ["id", "created_at", "updated_at"],
+  "searchable": ["name", "description"],
+  "groupable": ["status", "tenant_id", "is_demo"],
+  "aggregatable": ["id"]
 }
 ```
 
-Register your own objects by inserting an `api_entities` row with `entity_name`, `table_name`, `primary_key_name`, and a `schema_json` policy of the same shape. Only the identifiers listed there are reachable; everything else is rejected.
+The last three keys are optional and govern the query controls (see the [API Reference](api-reference.md)):
+
+- **`searchable`** — fields permitted in `like` filters.
+- **`groupable`** — fields permitted in `group_by`.
+- **`aggregatable`** — fields permitted as `sum`/`avg`/`min`/`max`/`count` targets.
+
+Register your own objects by inserting an `api_entities` row with `entity_name`, `table_name`, `primary_key_name`, and a `schema_json` policy of the same shape. Only the identifiers listed there are reachable; everything else is rejected. Omitting `searchable`/`groupable`/`aggregatable` simply disables those controls for the entity.
