@@ -72,7 +72,7 @@ try {
     $demo = new PublicDemoService($demoConfig, $limiter);
 
     $pipeline = new MiddlewarePipeline([
-        new HttpsMiddleware((bool) ($security['require_https'] ?? false), (bool) ($security['dev_mode'] ?? false)),
+        new HttpsMiddleware((bool) ($security['require_https'] ?? true), (bool) ($security['dev_mode'] ?? false)),
         new RoutingMiddleware(new Router()),
         new JsonBodyLimitMiddleware((int) $security['max_body_bytes']),
         new PreAuthRateLimitMiddleware($limiter, $preAuthConfig),
