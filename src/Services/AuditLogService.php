@@ -14,7 +14,7 @@ final class AuditLogService
     /** @param array{mode?:string,sample_rate?:int} $config */
     public function __construct(
         private readonly PDO $database,
-        private readonly array $config = ['mode' => 'all'],
+        private readonly array $config = ['mode' => 'authenticated_only'],
     ) {
     }
 
@@ -64,6 +64,5 @@ final class AuditLogService
             // If randomness fails, avoid breaking the request pipeline.
             return !$success;
         }
-    }
     }
 }
