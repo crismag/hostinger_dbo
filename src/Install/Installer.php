@@ -566,6 +566,22 @@ final class Installer
         $apply($this->rateLimitDir(), 0o700);
         $apply($this->lockPath(), 0o600);
 
+        // Secure the SQLite database file (and its WAL/SHM sidecars) if this is
+        // a sqlite deployment.
+        if (is_readable($this->databaseConfigPath())) {
+            require_once __DIR__ . '/../Database/Dsn.php';
+            try {
+                $c = \App\Database\Dsn::normalize(require $this->databaseConfigPath());
+                if (($c['driver'] ?? '') === 'sqlite') {
+                    foreach (['', '-wal', '-shm'] as $suffix) {
+                        $apply($c['path'] . $suffix, 0o600);
+                    }
+                }
+            } catch (\Throwable) {
+                // Non-fatal: permission hardening is best-effort.
+            }
+        }
+
         foreach (glob($this->root . '/bin/*') ?: [] as $script) {
             $apply($script, 0o750);
         }

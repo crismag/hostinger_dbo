@@ -74,30 +74,94 @@ if ($isPost && !$alreadyInstalled) {
         $action = post('action');
 
         if ($action === 'connect') {
-            $db = [
-                'host' => post('db_host', 'localhost'),
-                'port' => post('db_port', '3306'),
-                'database' => post('db_database', 'dbo_gateway'),
-                'username' => post('db_username', 'root'),
-                'password' => post('db_password'),
-                'charset' => 'utf8mb4',
-            ];
-            $createDb = checked('create_database');
-            $withExamples = checked('with_examples');
-            $test = $installer->testDatabase($db, $createDb);
-            if (!$test['ok']) {
-                $errors[] = 'Database connection failed: ' . $test['error'];
-            } else {
+            $root = dirname(__DIR__);
+            $driver = post('driver', 'mysql') === 'sqlite' ? 'sqlite' : 'mysql';
+            $manifestPath = trim(post('manifest'));
+            $db = null;
+            $manifest = null;
+
+            // Optional app manifest dictates driver/database and entity registration.
+            if ($manifestPath !== '') {
                 try {
-                    $pdo = $installer->connect($db, false);
-                    foreach ($installer->loadSchema($pdo, $withExamples) as $r) {
-                        $notices[] = "{$r['file']}: {$r['note']}";
-                    }
-                    $_SESSION['install_db'] = $db;
-                    $_SESSION['install_entities'] = $installer->registeredEntities($pdo);
-                    $step = 'configure';
+                    require_once $root . '/src/Config/AppDefinition.php';
+                    $manifest = App\Config\AppDefinition::load($manifestPath);
+                    $driver = $manifest->driver();
                 } catch (Throwable $ex) {
-                    $errors[] = 'Schema load failed: ' . $ex->getMessage();
+                    $errors[] = 'Manifest error: ' . $ex->getMessage();
+                }
+            }
+
+            if ($errors === [] && $driver === 'sqlite') {
+                if (!extension_loaded('pdo_sqlite')) {
+                    $errors[] = 'The pdo_sqlite extension is not available on this server.';
+                } else {
+                    $raw = $manifest !== null && $manifest->database() !== '' ? $manifest->database() : post('sqlite_path', 'storage/gateway.sqlite');
+                    $path = str_starts_with($raw, '/') ? $raw : $root . '/' . ltrim($raw, '/');
+                    $real = rtrim(str_replace('\\', '/', $path), '/');
+                    // Security: the database file must never live inside the public/ web root.
+                    if ($real === __DIR__ || str_starts_with($real . '/', __DIR__ . '/')) {
+                        $errors[] = 'The SQLite database must be located outside the public/ web root.';
+                    } else {
+                        $db = ['driver' => 'sqlite', 'path' => $real];
+                    }
+                }
+            } elseif ($errors === []) {
+                $db = [
+                    'driver' => 'mysql',
+                    'host' => post('db_host', 'localhost'),
+                    'port' => post('db_port', '3306'),
+                    'database' => $manifest !== null && $manifest->database() !== '' ? $manifest->database() : post('db_database', 'dbo_gateway'),
+                    'username' => post('db_username', 'root'),
+                    'password' => post('db_password'),
+                    'charset' => 'utf8mb4',
+                ];
+            }
+
+            if ($errors === [] && is_array($db)) {
+                $createDb = $driver === 'mysql' && checked('create_database');
+                $withExamples = $manifest === null && checked('with_examples');
+                $test = $installer->testDatabase($db, $createDb);
+                if (!$test['ok']) {
+                    $errors[] = 'Database connection failed: ' . $test['error'];
+                } else {
+                    try {
+                        $installer->ensureStorage();
+                        $pdo = $installer->connect($db, false);
+                        foreach ($installer->loadSchema($pdo, $withExamples) as $r) {
+                            $notices[] = "{$r['file']}: {$r['note']}";
+                        }
+                        // Manifest: import the app's object schema and register its entities.
+                        if ($manifest !== null) {
+                            $appSchema = $manifest->dir() . '/data/schema.sql';
+                            if (is_readable($appSchema)) {
+                                $installer->importSql($pdo, $appSchema);
+                                $notices[] = 'app schema (data/schema.sql) imported';
+                            }
+                            $registryFile = $manifest->dir() . '/data/registry.json';
+                            if ($manifest->entities() !== []) {
+                                $registry = is_readable($registryFile) ? json_decode((string) file_get_contents($registryFile), true) : null;
+                                if (!is_array($registry)) {
+                                    throw new RuntimeException('manifest lists entities but data/registry.json is missing or invalid');
+                                }
+                                $defs = [];
+                                foreach ($manifest->entities() as $name) {
+                                    if (!isset($registry[$name]) || !is_array($registry[$name])) {
+                                        throw new RuntimeException("registry.json is missing entity: $name");
+                                    }
+                                    $defs[$name] = $registry[$name];
+                                }
+                                foreach ($installer->registerEntities($pdo, $defs) as $r) {
+                                    $notices[] = "entity {$r['entity']}: {$r['action']}";
+                                }
+                            }
+                            $_SESSION['install_app'] = $manifest->app();
+                        }
+                        $_SESSION['install_db'] = $db;
+                        $_SESSION['install_entities'] = $installer->registeredEntities($pdo);
+                        $step = 'configure';
+                    } catch (Throwable $ex) {
+                        $errors[] = 'Schema load failed: ' . $ex->getMessage();
+                    }
                 }
             }
             if ($errors !== []) {
@@ -251,21 +315,48 @@ $registeredEntities = $_SESSION['install_entities'] ?? [];
     <form method="post" autocomplete="off">
       <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
       <input type="hidden" name="action" value="connect">
-      <h2>Database connection</h2>
-      <div class="row">
-        <div><label>Host</label><input type="text" name="db_host" value="<?= e(post('db_host', 'localhost')) ?>"></div>
-        <div><label>Port</label><input type="text" name="db_port" value="<?= e(post('db_port', '3306')) ?>"></div>
+
+      <h2>Storage driver</h2>
+      <label>Driver</label>
+      <select name="driver" id="driver" onchange="toggleDriver()">
+        <option value="mysql" <?= post('driver', 'mysql') === 'sqlite' ? '' : 'selected' ?>>MySQL / MariaDB</option>
+        <option value="sqlite" <?= post('driver') === 'sqlite' ? 'selected' : '' ?>>SQLite (no server)</option>
+      </select>
+
+      <div id="mysql-fields">
+        <h2>MySQL connection</h2>
+        <div class="row">
+          <div><label>Host</label><input type="text" name="db_host" value="<?= e(post('db_host', 'localhost')) ?>"></div>
+          <div><label>Port</label><input type="text" name="db_port" value="<?= e(post('db_port', '3306')) ?>"></div>
+        </div>
+        <label>Database name</label>
+        <input type="text" name="db_database" value="<?= e(post('db_database', 'dbo_gateway')) ?>">
+        <div class="row">
+          <div><label>Username</label><input type="text" name="db_username" value="<?= e(post('db_username', 'root')) ?>"></div>
+          <div><label>Password</label><input type="password" name="db_password" value="<?= e(post('db_password')) ?>"></div>
+        </div>
+        <label class="check"><input type="checkbox" name="create_database" <?= checked('create_database') ? 'checked' : '' ?>> Create the database if it does not exist</label>
       </div>
-      <label>Database name</label>
-      <input type="text" name="db_database" value="<?= e(post('db_database', 'dbo_gateway')) ?>">
-      <div class="row">
-        <div><label>Username</label><input type="text" name="db_username" value="<?= e(post('db_username', 'root')) ?>"></div>
-        <div><label>Password</label><input type="password" name="db_password" value="<?= e(post('db_password')) ?>"></div>
+
+      <div id="sqlite-fields" style="display:none">
+        <h2>SQLite database</h2>
+        <label>Database file path (relative to project root; must be outside <code>public/</code>)</label>
+        <input type="text" name="sqlite_path" value="<?= e(post('sqlite_path', 'storage/gateway.sqlite')) ?>">
       </div>
-      <label class="check"><input type="checkbox" name="create_database" <?= checked('create_database') ? 'checked' : '' ?>> Create the database if it does not exist</label>
-      <label class="check"><input type="checkbox" name="with_examples" checked> Load example object tables (projects, users)</label>
+
+      <h2>Application (optional)</h2>
+      <label>App manifest (<code>app.json</code>) — overrides the driver/database above and registers its entities</label>
+      <input type="text" name="manifest" value="<?= e(post('manifest')) ?>" placeholder="leave blank for a manual install">
+
+      <label class="check"><input type="checkbox" name="with_examples" checked> Load example object tables (projects, users) — ignored when a manifest is used</label>
       <button type="submit" <?= $preflightOk ? '' : 'disabled' ?>>Connect &amp; load schema →</button>
     </form>
+    <script>
+      function toggleDriver(){var d=document.getElementById('driver').value;
+        document.getElementById('mysql-fields').style.display=d==='sqlite'?'none':'';
+        document.getElementById('sqlite-fields').style.display=d==='sqlite'?'':'none';}
+      toggleDriver();
+    </script>
   </div>
 
 <?php elseif ($step === 'configure'): ?>

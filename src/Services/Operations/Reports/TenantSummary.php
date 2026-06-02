@@ -24,15 +24,26 @@ final class TenantSummary implements ServiceOperation
     public function execute(array $input, ServiceContext $context): array
     {
         $limit = (int) ($input['limit'] ?? 50);
+
+        // Honour the client's enforced scope (e.g. tenant_id). Empty for unscoped
+        // clients, in which case this is a full cross-tenant report.
+        $params = [];
+        $scope = $context->bindScopedWhere([], $params, 'p');
+        $where = $scope !== '' ? ' WHERE ' . $scope : '';
+
         $sql = 'SELECT p.`tenant_id` AS tenant_id,'
             . ' COUNT(DISTINCT p.`id`) AS projects,'
             . ' COUNT(DISTINCT u.`id`) AS users'
             . ' FROM `projects` p'
             . ' LEFT JOIN `users` u ON u.`tenant_id` = p.`tenant_id`'
+            . $where
             . ' GROUP BY p.`tenant_id`'
             . ' ORDER BY projects DESC, p.`tenant_id` ASC'
             . ' LIMIT :limit';
         $statement = $context->pdo()->prepare($sql);
+        foreach ($params as $key => $value) {
+            $statement->bindValue(':' . $key, $value);
+        }
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 
