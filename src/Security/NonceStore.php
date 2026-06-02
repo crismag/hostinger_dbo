@@ -17,6 +17,10 @@ final class NonceStore
 
     public function claim(int $clientId, string $nonce, DateTimeImmutable $timestamp): bool
     {
+        // Best-effort cleanup to prevent unbounded table growth.
+        $cleanup = $this->database->prepare('DELETE FROM `api_nonces` WHERE `client_id` = :client_id AND `expires_at` < :now');
+        $cleanup->execute(['client_id' => $clientId, 'now' => $timestamp->format('Y-m-d H:i:s')]);
+
         $statement = $this->database->prepare(
             'INSERT INTO `api_nonces` (`client_id`, `nonce`, `expires_at`) VALUES (:client_id, :nonce, :expires_at)'
         );
