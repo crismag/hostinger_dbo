@@ -24,7 +24,7 @@ final class MutationGuardService
             return;
         }
         $client = $this->clientConfig[$clientId] ?? [];
-        if ($client['allow_bulk_updates'] ?? false) {
+        if (($client['allow_bulk_updates'] ?? false) === true) {
             return;
         }
         if (!array_key_exists($schema->primaryKey, $where) || $where[$schema->primaryKey] === null || $where[$schema->primaryKey] === '') {

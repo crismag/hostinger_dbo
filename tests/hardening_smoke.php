@@ -119,12 +119,17 @@ assert((new HttpsMiddleware(false, false))->handle($plain('203.0.113.1', false),
 $server = $_SERVER;
 $_SERVER = [
     'REQUEST_METHOD' => 'POST',
-    'REQUEST_URI' => '/x',
+    'REQUEST_URI' => '/api/v1/projects/select',
     'REMOTE_ADDR' => '203.0.113.10',
     'HTTP_X_FORWARDED_PROTO' => 'https',
+    'HTTP_X_FORWARDED_FOR' => '198.51.100.20, 203.0.113.10',
 ];
-assert(Request::fromGlobals(65536)->secure === false);
-assert(Request::fromGlobals(65536, ['203.0.113.10'])->secure === true);
+$proxied = Request::fromGlobals(1024, ['203.0.113.10']);
+assert($proxied->secure === true);
+assert($proxied->ipAddress === '198.51.100.20');
+$untrusted = Request::fromGlobals(1024, []);
+assert($untrusted->secure === false);
+assert($untrusted->ipAddress === '203.0.113.10');
 $_SERVER = $server;
 
 // ---------------------------------------------------------------------------

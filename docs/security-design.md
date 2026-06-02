@@ -20,7 +20,7 @@ The server compares signatures with `hash_equals()`. Timestamp values must use U
 
 ## Transport security
 
-When `require_https` is enabled, `HttpsMiddleware` rejects plaintext HTTP with `HTTPS_REQUIRED` before any other processing. Detection uses `HTTPS`, `SERVER_PORT`, and `REQUEST_SCHEME` directly, and it honours `X-Forwarded-Proto` only when `REMOTE_ADDR` is listed in `trusted_proxies`. In that trusted-proxy mode, `Request::fromGlobals()` also resolves the client IP from `X-Forwarded-For`; otherwise it keeps `REMOTE_ADDR`. `127.0.0.1`/`::1` and `dev_mode` are exempt for local development.
+When `require_https` is enabled, `HttpsMiddleware` rejects plaintext HTTP with `HTTPS_REQUIRED` before any other processing. Detection uses `HTTPS`, `SERVER_PORT`, and `REQUEST_SCHEME` directly, and only honours `X-Forwarded-Proto` / `X-Forwarded-For` when the immediate peer is listed in `trusted_proxies`. In that trusted-proxy mode, `Request::fromGlobals()` resolves the client IP from the forwarded chain without trusting direct callers to spoof secure transport. `127.0.0.1`/`::1` and `dev_mode` are exempt for local development.
 
 ## Pre-authentication abuse protection
 

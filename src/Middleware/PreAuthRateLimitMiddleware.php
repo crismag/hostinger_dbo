@@ -29,7 +29,8 @@ final class PreAuthRateLimitMiddleware
             'minute' => (int) ($this->config['minute_limit'] ?? 30),
             'hour' => (int) ($this->config['hour_limit'] ?? 500),
         ];
-        if (!$this->limiter->allow('preauth:' . ($request->ipAddress ?? 'unknown'), $limits)) {
+        $clientIp = $request->ipAddress ?? 'unknown';
+        if (!$this->limiter->allow('preauth:' . $clientIp, $limits)) {
             throw new ApiException('RATE_LIMITED', 'Too many requests', 429);
         }
 

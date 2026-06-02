@@ -19,8 +19,12 @@ return [
     // Finding #7 — reject plaintext HTTP. Localhost and dev_mode are always exempt.
     'require_https' => true,
     'dev_mode' => false,
-    // Only these proxy IPs may supply forwarded client IP / scheme headers.
-    'trusted_proxies' => [],
+    // Trust proxy-provided X-Forwarded-Proto / X-Forwarded-For only from these immediate peers.
+    // Use exact IPs or CIDR ranges and leave empty when the gateway is directly exposed.
+    'trusted_proxies' => [
+        // '203.0.113.10',
+        // '2001:db8::/32',
+    ],
 
     // Finding #1 — IP-keyed abuse gate that runs before authentication. Filesystem-backed; never
     // touches the database, so invalid clients and bot scans cannot generate DB reads or audit writes.

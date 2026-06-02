@@ -48,20 +48,23 @@ final class Request
                 fclose($stream);
             }
         }
-        $remoteAddress = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null;
+        $peerAddress = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null;
 
         return new self(
             strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')),
             parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/',
             $body,
             $headers,
-            self::detectClientIp($headers, $remoteAddress, $trustedProxies),
-            self::detectHttps($headers, $remoteAddress, $trustedProxies),
+            self::resolveClientIpAddress($headers, $peerAddress, $trustedProxies),
+            self::detectHttps($headers, $peerAddress, $trustedProxies),
         );
     }
 
-    /** @param array<string, string> $headers */
-    private static function detectHttps(array $headers, ?string $remoteAddress, array $trustedProxies): bool
+    /**
+     * @param array<string, string> $headers
+     * @param list<string> $trustedProxies
+     */
+    private static function detectHttps(array $headers, ?string $peerAddress, array $trustedProxies): bool
     {
         $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
         if ($https !== '' && $https !== 'off') {
@@ -74,7 +77,7 @@ final class Request
             return true;
         }
 
-        if (!self::isTrustedProxy($remoteAddress, $trustedProxies)) {
+        if (!self::isTrustedProxy($peerAddress, $trustedProxies)) {
             return false;
         }
 
@@ -82,22 +85,88 @@ final class Request
         return strtolower(trim(explode(',', $headers['x-forwarded-proto'] ?? '')[0])) === 'https';
     }
 
-    /** @param array<string, string> $headers */
-    private static function detectClientIp(array $headers, ?string $remoteAddress, array $trustedProxies): ?string
+    /**
+     * @param array<string, string> $headers
+     * @param list<string> $trustedProxies
+     */
+    private static function resolveClientIpAddress(array $headers, ?string $peerAddress, array $trustedProxies): ?string
     {
-        if (!self::isTrustedProxy($remoteAddress, $trustedProxies)) {
-            return $remoteAddress;
+        if (!self::isTrustedProxy($peerAddress, $trustedProxies)) {
+            return $peerAddress;
         }
 
-        $forwardedFor = trim(explode(',', $headers['x-forwarded-for'] ?? '')[0]);
+        $forwardedFor = array_values(array_filter(
+            array_map('trim', explode(',', $headers['x-forwarded-for'] ?? '')),
+            static fn (string $ip): bool => $ip !== '' && filter_var($ip, FILTER_VALIDATE_IP) !== false
+        ));
+        for ($index = count($forwardedFor) - 1; $index >= 0; $index--) {
+            if (!self::isTrustedProxy($forwardedFor[$index], $trustedProxies)) {
+                return $forwardedFor[$index];
+            }
+        }
 
-        return $forwardedFor !== '' ? $forwardedFor : $remoteAddress;
+        return $peerAddress;
     }
 
-    /** @param list<string> $trustedProxies */
-    private static function isTrustedProxy(?string $remoteAddress, array $trustedProxies): bool
+    /**
+     * @param list<string> $trustedProxies
+     */
+    private static function isTrustedProxy(?string $ipAddress, array $trustedProxies): bool
     {
-        return $remoteAddress !== null && in_array($remoteAddress, $trustedProxies, true);
+        if ($ipAddress === null || filter_var($ipAddress, FILTER_VALIDATE_IP) === false) {
+            return false;
+        }
+
+        foreach ($trustedProxies as $proxy) {
+            if (!is_string($proxy) || $proxy === '') {
+                continue;
+            }
+            if (!str_contains($proxy, '/')) {
+                if ($ipAddress === $proxy) {
+                    return true;
+                }
+                continue;
+            }
+            if (self::ipMatchesCidr($ipAddress, $proxy)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function ipMatchesCidr(string $ipAddress, string $cidr): bool
+    {
+        [$network, $prefix] = array_pad(explode('/', $cidr, 2), 2, null);
+        if ($network === null || $prefix === null || !ctype_digit($prefix)) {
+            return false;
+        }
+
+        $ip = inet_pton($ipAddress);
+        $subnet = inet_pton($network);
+        if ($ip === false || $subnet === false || strlen($ip) !== strlen($subnet)) {
+            return false;
+        }
+
+        $bits = (int) $prefix;
+        $maxBits = strlen($ip) * 8;
+        if ($bits < 0 || $bits > $maxBits) {
+            return false;
+        }
+
+        $fullBytes = intdiv($bits, 8);
+        if ($fullBytes > 0 && substr($ip, 0, $fullBytes) !== substr($subnet, 0, $fullBytes)) {
+            return false;
+        }
+
+        $remainingBits = $bits % 8;
+        if ($remainingBits === 0) {
+            return true;
+        }
+
+        $mask = (0xFF << (8 - $remainingBits)) & 0xFF;
+
+        return (ord($ip[$fullBytes]) & $mask) === (ord($subnet[$fullBytes]) & $mask);
     }
 
     public function header(string $name): ?string
