@@ -50,6 +50,8 @@ bin/install.sh
 
 **No shell access (FTP / cPanel)?** Upload the files, set the document root to `public/`, then open `https://your-domain/install.php` and follow the browser wizard. **Delete `public/install.php` when it finishes.**
 
+**Composer** is optional. The gateway is dependency-free and runs without it, but if you prefer Composer you can `composer install` for a generated PSR-4 autoloader, or scaffold a fresh deployment with `composer create-project crismag/php-dbo-gateway` once it is published to Packagist.
+
 Point the web server's document root at `public/` only, serve over HTTPS, and you are ready to make signed requests. See the **[Installation Guide](docs/installation.md)** for shared-hosting and VPS walkthroughs, manual installation, and troubleshooting.
 
 ## Security Model
@@ -72,10 +74,12 @@ Read the full **[Security Guide](docs/security-design.md)** for details.
 
 - **[Installation Guide](docs/installation.md)** — requirements, shared-hosting & VPS install, configuration, validation, troubleshooting
 - **[Security Guide](docs/security-design.md)** — authentication, authorization, tenant isolation, auditing
-- **[API Reference](docs/api-design.md)** — routes, headers, request/response shapes, error codes
+- **[API Reference](docs/api-reference.md)** — routes, headers, request/response shapes, error codes
 - **[Architecture](docs/architecture.md)** — request pipeline and design constraints
 - **[Database Schema](docs/database-schema.md)** — security/registry tables and the entity registry
 - **[Deployment](docs/deployment.md)** — HTTPS, proxies, rate-limit storage, scheduled cleanup
+- **[Migration](docs/migration.md)** — moving from the former `hostinger_dbo` name
+- **[Changelog](CHANGELOG.md)** — versioned release history
 
 ## Example Requests
 
@@ -128,4 +132,4 @@ Each request runs synchronously in PHP with no long-running process, queue worke
 
 ## License
 
-No license file is currently included in this repository. Until one is added, all rights are reserved by the author. If you intend to publish `php-dbo-gateway` as open source, add a `LICENSE` file (for example MIT or Apache-2.0) before release and update this section accordingly.
+Released under the [MIT License](LICENSE). © 2026 Cris Magalang.

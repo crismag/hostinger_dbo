@@ -47,16 +47,24 @@ use App\Services\ScopeEnforcementService;
 use App\Validation\RequestValidator;
 use App\Validation\SchemaRegistry;
 
-spl_autoload_register(static function (string $class): void {
-    $prefix = 'App\\';
-    if (!str_starts_with($class, $prefix)) {
-        return;
-    }
-    $file = dirname(__DIR__) . '/src/' . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
-    if (is_readable($file)) {
-        require_once $file;
-    }
-});
+// Prefer Composer's autoloader when the project was installed via Composer; fall
+// back to a built-in PSR-4 loader so the gateway stays dependency-free and runs
+// on hosts where Composer is unavailable.
+$composerAutoload = dirname(__DIR__) . '/vendor/autoload.php';
+if (is_file($composerAutoload)) {
+    require $composerAutoload;
+} else {
+    spl_autoload_register(static function (string $class): void {
+        $prefix = 'App\\';
+        if (!str_starts_with($class, $prefix)) {
+            return;
+        }
+        $file = dirname(__DIR__) . '/src/' . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
+        if (is_readable($file)) {
+            require_once $file;
+        }
+    });
+}
 
 // ---------------------------------------------------------------------------
 // Bootstrap request metadata and deployment configuration.

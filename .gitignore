@@ -2,3 +2,4 @@
 /config/security.php
 /.env
 /storage/
+/vendor/

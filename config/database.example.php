@@ -48,11 +48,24 @@ $getEnv = static function (string $name, string $default = ''): string {
     return $value === false ? $default : $value;
 };
 
+// Read the first environment variable that is set, so both the documented
+// short names (DB_NAME, DB_USER) and the longer aliases (DB_DATABASE,
+// DB_USERNAME) work interchangeably.
+$getEnvAny = static function (array $names, string $default = '') use ($getEnv): string {
+    foreach ($names as $name) {
+        if (getenv($name) !== false) {
+            return $getEnv($name, $default);
+        }
+    }
+
+    return $default;
+};
+
 return [
-    'host' => $getEnv('DB_HOST', 'localhost'),
-    'port' => $getEnv('DB_PORT', '3306'),
-    'database' => $getEnv('DB_DATABASE', 'dbo_gateway'),
-    'username' => $getEnv('DB_USERNAME', 'root'),
-    'password' => $getEnv('DB_PASSWORD'),
-    'charset' => $getEnv('DB_CHARSET', 'utf8mb4'),
+    'host' => $getEnvAny(['DB_HOST'], 'localhost'),
+    'port' => $getEnvAny(['DB_PORT'], '3306'),
+    'database' => $getEnvAny(['DB_NAME', 'DB_DATABASE'], 'dbo_gateway'),
+    'username' => $getEnvAny(['DB_USER', 'DB_USERNAME'], 'root'),
+    'password' => $getEnvAny(['DB_PASSWORD']),
+    'charset' => $getEnvAny(['DB_CHARSET'], 'utf8mb4'),
 ];

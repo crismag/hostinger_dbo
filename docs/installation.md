@@ -231,6 +231,20 @@ Clients must **not** send the enforced fields themselves. With `tenant_scope.on_
 
 Each client has a `client_id` (stored in `api_clients`) and an HMAC secret (stored in `config/security.php`). Generate strong secrets — the installer uses 256 bits of `random_bytes`. To rotate a secret, update `client_secrets` and notify the client; to add clients, insert a row in `api_clients`, grant permissions in `api_client_permissions`, and add the secret to `client_secrets`.
 
+### Environment variables (12-factor friendly)
+
+The config files are PHP arrays, which fail closed if ever served and work on every host. For containerized or 12-factor deployments you can keep secrets out of files entirely: the example configs read from the environment (and a project-root `.env`), with the PHP file as a thin loader. Recognised variables:
+
+| Variable | Aliases | Used by |
+| --- | --- | --- |
+| `DB_HOST`, `DB_PORT`, `DB_PASSWORD`, `DB_CHARSET` | — | `config/database.php` |
+| `DB_NAME` | `DB_DATABASE` | `config/database.php` |
+| `DB_USER` | `DB_USERNAME` | `config/database.php` |
+| `GATEWAY_CLIENT_ID` | — | `config/security.php` (primary client id) |
+| `GATEWAY_SECRET` | `API_CLIENT_EXAMPLE_SECRET` | `config/security.php` (primary client HMAC secret) |
+
+Environment values take precedence over `.env`. This is a **hybrid** model: file-based by default (best for shared hosting), environment-first when you set the variables (best for VPS, containers, and CI). Choose one consistently per environment.
+
 ## Validation Steps
 
 ### 1. Health check
@@ -274,7 +288,7 @@ curl -s -X POST "https://your-domain$path" \
 {"ok":true,"data":[],"meta":{"request_id":"generated-id"}}
 ```
 
-An empty `data` array is correct on a fresh install (no rows yet). A non-`200` response with a stable error code points you at the issue — see below and the [API Reference](api-design.md).
+An empty `data` array is correct on a fresh install (no rows yet). A non-`200` response with a stable error code points you at the issue — see below and the [API Reference](api-reference.md).
 
 ## Troubleshooting
 
@@ -311,5 +325,5 @@ chgrp -R www-data config storage
 
 - Review the [Security Guide](security-design.md) and confirm `require_https`, `mutation_guard`, and `tenant_scope` suit your deployment.
 - Register your own objects in `api_entities` (see the [Database Schema](database-schema.md)).
-- Read the [API Reference](api-design.md) for request/response shapes and error codes.
+- Read the [API Reference](api-reference.md) for request/response shapes and error codes.
 - Set up the [scheduled cleanup](deployment.md#scheduled-cleanup) cron job.

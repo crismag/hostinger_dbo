@@ -1,0 +1,64 @@
+{
+    "name": "crismag/php-dbo-gateway",
+    "description": "Secure, dependency-free PHP gateway for controlled MySQL and MariaDB object access.",
+    "type": "project",
+    "keywords": [
+        "api",
+        "gateway",
+        "rest",
+        "mysql",
+        "mariadb",
+        "pdo",
+        "hmac",
+        "database",
+        "security",
+        "multi-tenant",
+        "rate-limiting",
+        "audit-log",
+        "shared-hosting"
+    ],
+    "homepage": "https://github.com/crismag/php-dbo-gateway",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Cris Magalang"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/crismag/php-dbo-gateway/issues",
+        "source": "https://github.com/crismag/php-dbo-gateway"
+    },
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-mbstring": "*",
+        "ext-json": "*"
+    },
+    "suggest": {
+        "ext-curl": "Only the signed-request client examples use cURL; the gateway server does not require it."
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "scripts": {
+        "install-gateway": "@php bin/install.php",
+        "harden": "bash bin/harden-permissions.sh",
+        "cleanup": "@php bin/cleanup.php",
+        "test": "@php tests/hardening_smoke.php"
+    },
+    "scripts-descriptions": {
+        "install-gateway": "Run the interactive/non-interactive setup wizard.",
+        "harden": "Apply secure file and directory permissions.",
+        "cleanup": "Purge expired nonces, stale rate-limit buckets, and old audit logs.",
+        "test": "Run the hardening smoke test."
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
