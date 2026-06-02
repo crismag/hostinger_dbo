@@ -53,11 +53,17 @@ final class AuditLogService
     {
         $identified = is_array($request->attribute('client'));
 
-        return match ($this->config['mode'] ?? 'all') {
-            'authenticated_only' => $identified,
-            'critical_only' => !$success,
-            'sampled' => $success || random_int(1, max(1, (int) ($this->config['sample_rate'] ?? 10))) === 1,
-            default => true,
-        };
+        try {
+            return match ($this->config['mode'] ?? 'all') {
+                'authenticated_only' => $identified,
+                'critical_only' => !$success,
+                'sampled' => $success || random_int(1, max(1, (int) ($this->config['sample_rate'] ?? 10))) === 1,
+                default => true,
+            };
+        } catch (Throwable) {
+            // If randomness fails, avoid breaking the request pipeline.
+            return !$success;
+        }
+    }
     }
 }
