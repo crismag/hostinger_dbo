@@ -11,7 +11,9 @@ All operations use signed JSON `POST` requests:
 | `/api/v1/{entity}/update` | `{"where":{"id":123,"tenant_id":"tenant_001"},"data":{"status":"archived"}}` |
 | `/api/v1/{entity}/delete` | `{"where":{"id":123,"tenant_id":"tenant_001"}}` |
 
-Update and delete require non-empty `where` objects. Nested values, unregistered entities, non-allowlisted identifiers, raw SQL, and schema introspection are rejected.
+Update and delete require a `where` that filters by the entity's primary key when `mutation_guard` is enabled (otherwise a non-empty `where`). Server-controlled tenant scope filters are merged into every query, so a client cannot read or mutate outside its configured scope. Nested values, unregistered entities, non-allowlisted identifiers, raw SQL, and schema introspection are rejected.
+
+When `public_demo` is enabled, the same `select` route may be called **without** the signature headers; such requests are served only for explicitly configured demo interfaces, are read-only, and are hard-capped (row limit, allowed fields/filters, mandatory injected filters).
 
 ## Headers
 
@@ -37,7 +39,18 @@ Error:
 {"ok":false,"error":{"code":"AUTH_INVALID_SIGNATURE","message":"Invalid request signature"},"meta":{"request_id":"generated-id"}}
 ```
 
-Expected statuses include `200`, `201`, `400`, `401`, `403`, `404`, `405`, `413`, `429`, and `500`. Stable error codes identify invalid JSON, oversized bodies, authentication failure, replayed nonces, permission failures, unknown entities, invalid fields, invalid filters, and rate-limit rejection.
+Expected statuses include `200`, `201`, `400`, `401`, `403`, `404`, `405`, `413`, `422`, `429`, and `500`. Stable error codes identify invalid JSON, oversized bodies, authentication failure, replayed nonces, permission failures, unknown entities, invalid fields, invalid filters, and rate-limit rejection.
+
+Hardening-related codes:
+
+| Code | Status | Meaning |
+| --- | --- | --- |
+| `HTTPS_REQUIRED` | 403 | Plaintext HTTP rejected while `require_https` is on |
+| `RATE_LIMITED` | 429 | Pre-auth or public-demo IP rate limit exceeded |
+| `AUTHENTICATION_FAILED` | 401 | Any signed-auth failure (unified to prevent client enumeration) |
+| `TENANT_SCOPE_VIOLATION` | 403 | Request conflicts with the client's enforced scope filter |
+| `RESTRICTIVE_WHERE_REQUIRED` | 422 | `update`/`delete` did not filter by the primary key |
+| `PERMISSION_DENIED` | 403 | Demo interface not available, or grant missing |
 
 ## Curl examples
 

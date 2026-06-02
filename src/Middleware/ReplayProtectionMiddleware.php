@@ -19,6 +19,9 @@ final class ReplayProtectionMiddleware
 
     public function handle(Request $request, Closure $next): Response
     {
+        if ($request->attribute('is_demo') === true) {
+            return $next($request);
+        }
         $client = $request->attribute('client');
         $timestamp = $request->attribute('timestamp');
         if (!$timestamp instanceof DateTimeImmutable || !$this->nonces->claim($client['id'], $request->attribute('nonce'), $timestamp)) {

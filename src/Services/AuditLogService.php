@@ -11,12 +11,18 @@ use Throwable;
 /** Writes request metadata and hashes without storing secrets or full bodies. */
 final class AuditLogService
 {
-    public function __construct(private readonly PDO $database)
-    {
+    /** @param array{mode?:string,sample_rate?:int} $config */
+    public function __construct(
+        private readonly PDO $database,
+        private readonly array $config = ['mode' => 'authenticated_only'],
+    ) {
     }
 
     public function write(Request $request, int $status, bool $success, ?string $errorCode, int $durationMs): void
     {
+        if (!$this->shouldWrite($request, $success)) {
+            return;
+        }
         try {
             $client = $request->attribute('client');
             $statement = $this->database->prepare(
@@ -40,6 +46,23 @@ final class AuditLogService
             ]);
         } catch (Throwable $exception) {
             error_log('Unable to write API audit log: ' . $exception->getMessage());
+        }
+    }
+
+    private function shouldWrite(Request $request, bool $success): bool
+    {
+        $identified = is_array($request->attribute('client'));
+
+        try {
+            return match ($this->config['mode'] ?? 'all') {
+                'authenticated_only' => $identified,
+                'critical_only' => !$success,
+                'sampled' => $success || random_int(1, max(1, (int) ($this->config['sample_rate'] ?? 10))) === 1,
+                default => true,
+            };
+        } catch (Throwable) {
+            // If randomness fails, avoid breaking the request pipeline.
+            return !$success;
         }
     }
 }
