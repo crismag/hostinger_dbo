@@ -23,7 +23,8 @@ final class Request
     ) {
     }
 
-    public static function fromGlobals(int $maxBodyBytes = 65536): self
+    /** @param list<string> $trustedProxies */
+    public static function fromGlobals(int $maxBodyBytes = 65536, array $trustedProxies = []): self
     {
         $headers = [];
         foreach ($_SERVER as $key => $value) {
@@ -54,12 +55,15 @@ final class Request
             $body,
             $headers,
             isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
-            self::detectHttps($headers),
+            self::detectHttps($headers, $trustedProxies),
         );
     }
 
-    /** @param array<string, string> $headers */
-    private static function detectHttps(array $headers): bool
+    /**
+     * @param array<string, string> $headers
+     * @param list<string> $trustedProxies
+     */
+    private static function detectHttps(array $headers, array $trustedProxies): bool
     {
         $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
         if ($https !== '' && $https !== 'off') {
@@ -72,7 +76,12 @@ final class Request
             return true;
         }
 
-        // Proxy/load-balancer TLS termination, common on shared hosting.
+        $remoteAddress = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+        if ($remoteAddress === '' || !in_array($remoteAddress, $trustedProxies, true)) {
+            return false;
+        }
+
+        // Proxy/load-balancer TLS termination, when the immediate peer is trusted.
         return strtolower(trim(explode(',', $headers['x-forwarded-proto'] ?? '')[0])) === 'https';
     }
 

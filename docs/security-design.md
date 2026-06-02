@@ -20,7 +20,7 @@ The server compares signatures with `hash_equals()`. Timestamp values must use U
 
 ## Transport security
 
-When `require_https` is enabled, `HttpsMiddleware` rejects plaintext HTTP with `HTTPS_REQUIRED` before any other processing. Detection is proxy-aware (`HTTPS`, `SERVER_PORT`, `REQUEST_SCHEME`, and `X-Forwarded-Proto`), which suits shared hosting that terminates TLS at a load balancer. `127.0.0.1`/`::1` and `dev_mode` are exempt for local development.
+When `require_https` is enabled, `HttpsMiddleware` rejects plaintext HTTP with `HTTPS_REQUIRED` before any other processing. Detection uses `HTTPS`, `SERVER_PORT`, and `REQUEST_SCHEME`, and only trusts `X-Forwarded-Proto` when the immediate peer (`REMOTE_ADDR`) is listed in `trusted_proxies`. `127.0.0.1`/`::1` and `dev_mode` are exempt for local development.
 
 ## Pre-authentication abuse protection
 

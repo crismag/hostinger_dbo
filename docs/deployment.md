@@ -32,7 +32,7 @@ php -S localhost:8000 -t public public/index.php
 
 ## HTTPS
 
-`require_https` defaults to `true`. Plaintext HTTP is rejected with `HTTPS_REQUIRED`, except for `127.0.0.1`/`::1` and when `dev_mode` is `true`. Detection honours `X-Forwarded-Proto`, so it works behind a TLS-terminating proxy or load balancer (common on shared hosting). Keep `require_https` on in production and serve the gateway only over TLS.
+`require_https` defaults to `true`. Plaintext HTTP is rejected with `HTTPS_REQUIRED`, except for `127.0.0.1`/`::1` and when `dev_mode` is `true`. Detection honours `X-Forwarded-Proto` only when `REMOTE_ADDR` is listed in `trusted_proxies`, so set that list when running behind a TLS-terminating proxy or load balancer. Keep `require_https` on in production and serve the gateway only over TLS.
 
 ## Rate-limit storage
 

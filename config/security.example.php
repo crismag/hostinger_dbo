@@ -19,6 +19,8 @@ return [
     // Finding #7 — reject plaintext HTTP. Localhost and dev_mode are always exempt.
     'require_https' => true,
     'dev_mode' => false,
+    // Trust X-Forwarded-Proto only from these proxy IPs.
+    'trusted_proxies' => [],
 
     // Finding #1 — IP-keyed abuse gate that runs before authentication. Filesystem-backed; never
     // touches the database, so invalid clients and bot scans cannot generate DB reads or audit writes.

@@ -54,7 +54,10 @@ try {
     }
     /** @var array<string, mixed> $security */
     $security = require $securityFile;
-    $request = Request::fromGlobals((int) $security['max_body_bytes']);
+    $request = Request::fromGlobals(
+        (int) $security['max_body_bytes'],
+        array_values(array_filter((array) ($security['trusted_proxies'] ?? []), 'is_string')),
+    );
     $request->setAttribute('request_id', bin2hex(random_bytes(16)));
     $database = Connection::getInstance();
     $schemas = new SchemaRegistry($database);

@@ -116,6 +116,16 @@ assert($https->handle($plain('203.0.113.1', true), $pass)->payload['ok'] === tru
 assert($https->handle($plain('127.0.0.1', false), $pass)->payload['ok'] === true);       // localhost exempt
 assert((new HttpsMiddleware(true, true))->handle($plain('203.0.113.1', false), $pass)->payload['ok'] === true); // dev_mode exempt
 assert((new HttpsMiddleware(false, false))->handle($plain('203.0.113.1', false), $pass)->payload['ok'] === true); // disabled
+$server = $_SERVER;
+$_SERVER = [
+    'REQUEST_METHOD' => 'POST',
+    'REQUEST_URI' => '/x',
+    'REMOTE_ADDR' => '203.0.113.10',
+    'HTTP_X_FORWARDED_PROTO' => 'https',
+];
+assert(Request::fromGlobals(65536)->secure === false);
+assert(Request::fromGlobals(65536, ['203.0.113.10'])->secure === true);
+$_SERVER = $server;
 
 // ---------------------------------------------------------------------------
 echo "Finding #6 — unified authentication errors\n";
