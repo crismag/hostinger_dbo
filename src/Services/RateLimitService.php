@@ -20,6 +20,9 @@ final class RateLimitService
         $windowStart = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $windowStart = $windowStart->setTime((int) $windowStart->format('H'), (int) $windowStart->format('i'), 0);
         $bucket = $windowStart->format('YmdHi') . ':' . substr(hash('sha256', $ipAddress ?? ''), 0, 16);
+        // Best-effort cleanup to prevent unbounded table growth.
+        $cleanup = $this->database->prepare('DELETE FROM `api_rate_limits` WHERE `client_id` = :client_id AND `window_end` < :cutoff');
+        $cleanup->execute(['client_id' => $clientId, 'cutoff' => $windowStart->modify('-2 minutes')->format('Y-m-d H:i:s')]);
         try {
             $insert = $this->database->prepare(
                 'INSERT INTO `api_rate_limits` (`client_id`, `bucket_key`, `request_count`, `window_start`, `window_end`) '
