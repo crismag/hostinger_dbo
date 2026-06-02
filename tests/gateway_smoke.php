@@ -49,7 +49,7 @@ $db->exec("INSERT INTO api_clients VALUES (1, 'smoke-client', 'active', 'unused'
 $db->exec("INSERT INTO api_client_permissions VALUES (1, 'projects', 1, 1, 1, 1, 10, '[\"id\",\"tenant_id\",\"name\",\"status\",\"created_at\"]', '[\"id\",\"tenant_id\",\"status\"]')");
 
 $body = '{"where":{"tenant_id":"tenant_001"},"fields":["id","name","status"],"limit":10,"offset":0,"order_by":"id","order_dir":"asc"}';
-$timestamp = gmdate('Y-m-d\\TH:i:s\\Z');
+$timestamp = gmdate('Y-m-d\TH:i:s\Z');
 $nonce = 'smoke-nonce-001';
 $verifier = new SignatureVerifier();
 $canonical = $verifier->canonical('POST', '/api/v1/projects/select', $timestamp, $nonce, $body);
