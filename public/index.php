@@ -61,7 +61,7 @@ try {
 
     // Hardening configuration with backward-compatible defaults.
     $preAuthConfig = (array) ($security['pre_auth_rate_limit'] ?? ['enabled' => false]);
-    $auditConfig = (array) ($security['audit'] ?? ['mode' => 'all']);
+    $auditConfig = (array) ($security['audit'] ?? ['mode' => 'authenticated_only']);
     $demoConfig = (array) ($security['public_demo'] ?? ['enabled' => false]);
     $clientConfig = (array) ($security['clients'] ?? []);
     $mutationConfig = (array) ($security['mutation_guard'] ?? ['enabled' => false]);
