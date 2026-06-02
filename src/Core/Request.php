@@ -33,6 +33,9 @@ final class Request
         if (isset($_SERVER['CONTENT_TYPE'])) {
             $headers['content-type'] = (string) $_SERVER['CONTENT_TYPE'];
         }
+        if (isset($_SERVER['CONTENT_LENGTH'])) {
+            $headers['content-length'] = (string) $_SERVER['CONTENT_LENGTH'];
+        }
         $declaredLength = isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : null;
         if ($declaredLength !== null && $declaredLength > $maxBodyBytes) {
             $body = '';
