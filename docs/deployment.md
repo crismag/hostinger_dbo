@@ -8,6 +8,8 @@ The gateway can run on any PHP/MySQL shared host, managed web server, or VPS. It
 - MySQL or MariaDB
 - A web server configured with `public/` as the document root
 - Apache rewrite support when using the included `public/.htaccess`
+- A TLS certificate (HTTPS is required by default; see below)
+- A writable temporary directory for the filesystem rate limiter (defaults to the system temp dir)
 
 ## Installation
 
@@ -27,6 +29,26 @@ PHP's built-in server can route requests through the front controller during loc
 ```bash
 php -S localhost:8000 -t public public/index.php
 ```
+
+## HTTPS
+
+`require_https` defaults to `true`. Plaintext HTTP is rejected with `HTTPS_REQUIRED`, except for `127.0.0.1`/`::1` and when `dev_mode` is `true`. Detection honours `X-Forwarded-Proto`, so it works behind a TLS-terminating proxy or load balancer (common on shared hosting). Keep `require_https` on in production and serve the gateway only over TLS.
+
+## Rate-limit storage
+
+The pre-authentication and public-demo limiters store per-IP counters as local files. By default they live under the system temp directory; set `pre_auth_rate_limit.storage_dir` to a private, writable path if the temp directory is volatile or shared. The directory is created automatically and never needs to be web-accessible.
+
+## Scheduled cleanup
+
+Run the retention utility from cron (for example daily) to purge expired nonces, stale rate-limit buckets, audit logs older than `audit.retention_days`, and orphaned filesystem counters:
+
+```bash
+php bin/cleanup.php
+```
+
+## Audit volume
+
+For public-facing or demo deployments, keep `audit.mode` at `authenticated_only` (the default) or `sampled` so unauthenticated traffic does not fill `api_audit_logs`. Use `all` only when you need a complete request trail.
 
 ## Secret handling
 

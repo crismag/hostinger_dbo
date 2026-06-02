@@ -59,6 +59,17 @@ There is no raw SQL or schema-introspection endpoint. See [API design](docs/api-
 
 ## Security summary
 
-Every request requires JSON plus `X-Client-Id`, `X-Timestamp`, `X-Nonce`, and `X-Signature`. The signature is HMAC-SHA256 over method, path, timestamp, nonce, and the SHA-256 hash of the exact raw body. Middleware checks body size, timestamp skew, client status, optional IP restrictions, signature, nonce reuse, rate limits, registry schema, and client permissions before object-table access. Requests are audited using a body hash rather than body content.
+Every signed request requires JSON plus `X-Client-Id`, `X-Timestamp`, `X-Nonce`, and `X-Signature`. The signature is HMAC-SHA256 over method, path, timestamp, nonce, and the SHA-256 hash of the exact raw body. Middleware enforces HTTPS, body size, timestamp skew, client status, optional IP restrictions, signature, nonce reuse, rate limits, registry schema, and client permissions before object-table access. Requests are audited using a body hash rather than body content.
+
+The operating principle is: **trust nothing, authorize everything, constrain every query, rate limit every caller, scope every tenant, audit intelligently.** Concretely:
+
+- **Pre-auth abuse gate** — an IP-keyed, filesystem-backed limiter (`pre_auth_rate_limit`) rejects floods and bot scans before any database read or audit write.
+- **Tenant isolation** — per-client `enforced_filters` are merged into every query server-side; clients cannot widen scope with an empty `where`.
+- **Mutation guard** — `update`/`delete` must target the primary key (`mutation_guard`), preventing accidental bulk changes.
+- **Public demo** — optional, disabled-by-default anonymous read access (`public_demo`), constrained to explicitly defined interfaces with hard row caps, field/filter allowlists, and mandatory injected filters.
+- **Audit modes** — `audit.mode` (default `authenticated_only`) keeps the audit table from filling with unauthenticated traffic; `bin/cleanup.php` enforces retention.
+- **No client enumeration** — all authentication failures return a single `AUTHENTICATION_FAILED` code.
+
+All of this stays dependency-free (PHP 8.1+, PDO, no Composer/Redis/external services) and shared-hosting compatible. Configure it in `config/security.php`.
 
 Read [security design](docs/security-design.md), [database schema](docs/database-schema.md), [architecture](docs/architecture.md), and [deployment guidance](docs/deployment.md).

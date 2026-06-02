@@ -12,20 +12,26 @@ use App\Database\Connection;
 use App\Database\QueryBuilder;
 use App\Middleware\AuditMiddleware;
 use App\Middleware\HmacAuthMiddleware;
+use App\Middleware\HttpsMiddleware;
 use App\Middleware\JsonBodyLimitMiddleware;
 use App\Middleware\PermissionMiddleware;
+use App\Middleware\PreAuthRateLimitMiddleware;
 use App\Middleware\RateLimitMiddleware;
 use App\Middleware\ReplayProtectionMiddleware;
 use App\Middleware\RoutingMiddleware;
 use App\Repositories\ObjectRepository;
 use App\Security\ApiClientResolver;
+use App\Security\FilesystemRateLimiter;
 use App\Security\HmacAuth;
 use App\Security\NonceStore;
 use App\Security\SignatureVerifier;
 use App\Services\AuditLogService;
+use App\Services\MutationGuardService;
 use App\Services\ObjectService;
 use App\Services\PermissionService;
+use App\Services\PublicDemoService;
 use App\Services\RateLimitService;
+use App\Services\ScopeEnforcementService;
 use App\Validation\RequestValidator;
 use App\Validation\SchemaRegistry;
 
@@ -46,24 +52,46 @@ try {
     if (!is_readable($securityFile)) {
         throw new RuntimeException('Security configuration not found. Copy config/security.example.php to config/security.php.');
     }
-    /** @var array{timestamp_window_seconds:int,max_body_bytes:int,max_requests_per_minute:int,client_secrets:array<string,string>,allow_database_secrets:bool} $security */
+    /** @var array<string, mixed> $security */
     $security = require $securityFile;
-    $request = Request::fromGlobals($security['max_body_bytes']);
+    $request = Request::fromGlobals((int) $security['max_body_bytes']);
     $request->setAttribute('request_id', bin2hex(random_bytes(16)));
     $database = Connection::getInstance();
     $schemas = new SchemaRegistry($database);
+
+    // Hardening configuration with backward-compatible defaults.
+    $preAuthConfig = (array) ($security['pre_auth_rate_limit'] ?? ['enabled' => false]);
+    $auditConfig = (array) ($security['audit'] ?? ['mode' => 'all']);
+    $demoConfig = (array) ($security['public_demo'] ?? ['enabled' => false]);
+    $clientConfig = (array) ($security['clients'] ?? []);
+    $mutationConfig = (array) ($security['mutation_guard'] ?? ['enabled' => false]);
+    $scopeViolation = (string) ($security['tenant_scope']['on_violation'] ?? 'reject');
+    $storageDir = (string) ($preAuthConfig['storage_dir'] ?? (sys_get_temp_dir() . '/dbo_gateway_ratelimit'));
+
+    $limiter = new FilesystemRateLimiter($storageDir);
+    $demo = new PublicDemoService($demoConfig, $limiter);
+
     $pipeline = new MiddlewarePipeline([
-        new AuditMiddleware(new AuditLogService($database)),
+        new HttpsMiddleware((bool) ($security['require_https'] ?? false), (bool) ($security['dev_mode'] ?? false)),
         new RoutingMiddleware(new Router()),
-        new JsonBodyLimitMiddleware($security['max_body_bytes']),
+        new JsonBodyLimitMiddleware((int) $security['max_body_bytes']),
+        new PreAuthRateLimitMiddleware($limiter, $preAuthConfig),
+        new AuditMiddleware(new AuditLogService($database, $auditConfig)),
         new HmacAuthMiddleware(new HmacAuth(
-            new ApiClientResolver($database, $security['client_secrets'], $security['allow_database_secrets']),
+            new ApiClientResolver($database, $security['client_secrets'], (bool) $security['allow_database_secrets']),
             new SignatureVerifier(),
-            $security['timestamp_window_seconds'],
-        )),
-        new ReplayProtectionMiddleware(new NonceStore($database, $security['timestamp_window_seconds'])),
-        new RateLimitMiddleware(new RateLimitService($database, $security['max_requests_per_minute'])),
-        new PermissionMiddleware($schemas, new RequestValidator(), new PermissionService($database)),
+            (int) $security['timestamp_window_seconds'],
+        ), $demo),
+        new ReplayProtectionMiddleware(new NonceStore($database, (int) $security['timestamp_window_seconds'])),
+        new RateLimitMiddleware(new RateLimitService($database, (int) $security['max_requests_per_minute']), $demo),
+        new PermissionMiddleware(
+            $schemas,
+            new RequestValidator(),
+            new PermissionService($database),
+            new ScopeEnforcementService($clientConfig, $scopeViolation),
+            new MutationGuardService((bool) ($mutationConfig['enabled'] ?? false), $clientConfig),
+            $demo,
+        ),
     ]);
     $controller = new ObjectController(new ObjectService(new ObjectRepository($database, new QueryBuilder(), $schemas)));
     $pipeline->handle($request, $controller->handle(...))->emit();

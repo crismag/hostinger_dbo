@@ -19,6 +19,7 @@ final class Request
         public readonly string $rawBody,
         private readonly array $headers,
         public readonly ?string $ipAddress,
+        public readonly bool $secure = false,
     ) {
     }
 
@@ -53,7 +54,26 @@ final class Request
             $body,
             $headers,
             isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
+            self::detectHttps($headers),
         );
+    }
+
+    /** @param array<string, string> $headers */
+    private static function detectHttps(array $headers): bool
+    {
+        $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
+        if ($https !== '' && $https !== 'off') {
+            return true;
+        }
+        if (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443) {
+            return true;
+        }
+        if (strtolower((string) ($_SERVER['REQUEST_SCHEME'] ?? '')) === 'https') {
+            return true;
+        }
+
+        // Proxy/load-balancer TLS termination, common on shared hosting.
+        return strtolower(trim(explode(',', $headers['x-forwarded-proto'] ?? '')[0])) === 'https';
     }
 
     public function header(string $name): ?string
