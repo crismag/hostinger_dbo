@@ -6,7 +6,7 @@ Import `schema/security_tables.sql` first, then `schema/example_objects.sql`.
 
 | Table | Purpose |
 | --- | --- |
-| `api_clients` | Active machine clients, optional IP allowlists, and secret reference metadata |
+| `api_clients` | Active machine clients, optional IP allowlists, and secret metadata (`secret_hash` stores plaintext only when DB fallback is enabled) |
 | `api_client_permissions` | Per-client entity actions, field restrictions, filter restrictions, and select limits |
 | `api_nonces` | Accepted HMAC nonces with expiry timestamps for replay rejection |
 | `api_rate_limits` | Per-minute request-count buckets |

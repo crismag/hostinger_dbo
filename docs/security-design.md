@@ -16,7 +16,7 @@ The server compares signatures with `hash_equals()`. Timestamp values must use U
 
 ## Secret storage
 
-`ApiClientResolver` isolates secret lookup. For MVP use, secrets are supplied through `config/security.php`, preferably from environment-backed values. A database fallback exists behind the disabled `allow_database_secrets` flag so storage can be hardened later. Do not commit `config/security.php`, log secrets, or store secrets in audit records.
+`ApiClientResolver` isolates secret lookup. For MVP use, secrets are supplied through `config/security.php`, preferably from environment-backed values. A database fallback exists behind the disabled `allow_database_secrets` flag so storage can be hardened later. If that fallback is enabled, `api_clients.secret_hash` must contain the plaintext HMAC secret value (despite the column name). Do not commit `config/security.php`, log secrets, or store secrets in audit records.
 
 ## Replay protection and rate limiting
 

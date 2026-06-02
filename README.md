@@ -25,6 +25,7 @@ This is not Laravel, Slim, Fat-Free, Doctrine, a general PHP framework, a multi-
 3. Insert an active client and its permissions. Store the matching HMAC secret in `config/security.php` or inject it through the environment:
 
    ```sql
+   -- secret_hash is only used when allow_database_secrets=true, and must contain the plaintext HMAC secret value.
    INSERT INTO api_clients (client_id, client_name, secret_hash)
    VALUES ('example-client', 'Example service', 'configured-outside-database');
 

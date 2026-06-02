@@ -4,6 +4,7 @@ CREATE TABLE api_clients (
     client_id VARCHAR(128) NOT NULL UNIQUE,
     client_name VARCHAR(255) NOT NULL,
     status ENUM('active', 'disabled', 'revoked') NOT NULL DEFAULT 'active',
+    -- When allow_database_secrets is enabled, this stores the plaintext HMAC secret value.
     secret_hash VARCHAR(255) NOT NULL,
     allowed_ips TEXT NULL,
     description TEXT NULL,

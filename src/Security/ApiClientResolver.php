@@ -22,7 +22,7 @@ final class ApiClientResolver
     public function resolve(string $clientId, ?string $ipAddress): array
     {
         $statement = $this->database->prepare(
-            'SELECT `id`, `client_id`, `status`, `secret_hash`, `allowed_ips` FROM `api_clients` WHERE `client_id` = :client_id LIMIT 1'
+            'SELECT `id`, `client_id`, `status`, `secret_hash` AS `secret_value`, `allowed_ips` FROM `api_clients` WHERE `client_id` = :client_id LIMIT 1'
         );
         $statement->execute(['client_id' => $clientId]);
         $client = $statement->fetch();
@@ -32,7 +32,7 @@ final class ApiClientResolver
         $this->assertAllowedIp($client['allowed_ips'] ?? null, $ipAddress);
         $secret = $this->configuredSecrets[$clientId] ?? null;
         if ($secret === null && $this->allowDatabaseSecrets) {
-            $secret = (string) $client['secret_hash'];
+            $secret = (string) $client['secret_value'];
         }
         if (!is_string($secret) || $secret === '') {
             throw new ApiException('AUTH_SECRET_UNAVAILABLE', 'API client secret is unavailable', 401);
