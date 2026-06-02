@@ -1,6 +1,6 @@
 # Database Schema
 
-Import `schema/security_tables.sql` first, then `schema/example_objects.sql`.
+The [installer](installation.md) loads these schema files automatically (skipping any tables that already exist). To load them manually, import `schema/security_tables.sql` first, then `schema/example_objects.sql`.
 
 ## Security and registry tables
 
@@ -17,14 +17,16 @@ Import `schema/security_tables.sql` first, then `schema/example_objects.sql`.
 
 `schema/example_objects.sql` creates `tenants`, `projects`, and `users`. It seeds registry rows for the `projects` and `users` entities. The gateway never infers tables from URL values and does not offer table introspection.
 
-The `projects` registry includes this policy shape:
+The `projects` registry includes this policy shape (the `is_demo` column flags rows that are safe to expose through the optional public demo accessor):
 
 ```json
 {
-  "fields": ["id", "tenant_id", "name", "status", "description", "created_at", "updated_at"],
-  "insertable": ["tenant_id", "name", "status", "description"],
+  "fields": ["id", "tenant_id", "name", "status", "description", "is_demo", "created_at", "updated_at"],
+  "insertable": ["tenant_id", "name", "status", "description", "is_demo"],
   "updatable": ["name", "status", "description"],
-  "filterable": ["id", "tenant_id", "status"],
+  "filterable": ["id", "tenant_id", "status", "is_demo"],
   "orderable": ["id", "created_at", "updated_at"]
 }
 ```
+
+Register your own objects by inserting an `api_entities` row with `entity_name`, `table_name`, `primary_key_name`, and a `schema_json` policy of the same shape. Only the identifiers listed there are reachable; everything else is rejected.

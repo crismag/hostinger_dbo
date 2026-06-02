@@ -1,10 +1,10 @@
 # Deployment
 
-The gateway can run on any PHP/MySQL shared host, managed web server, or VPS. It does not require a long-running process, framework runtime, Node.js service, or provider-specific integration.
+`php-dbo-gateway` can run on any PHP/MySQL shared host, managed web server, or VPS. It does not require a long-running process, framework runtime, Node.js service, or provider-specific integration. For step-by-step shared-hosting and VPS walkthroughs, see the [Installation Guide](installation.md); this page focuses on operational concerns (HTTPS, proxies, rate-limit storage, and scheduled cleanup).
 
 ## Requirements
 
-- PHP 8.1 or newer with PDO MySQL enabled
+- PHP 8.1+ (tested through PHP 8.4.21) with PDO MySQL enabled. The project intentionally avoids framework dependencies and modern language features that would unnecessarily restrict PHP compatibility.
 - MySQL or MariaDB
 - A web server configured with `public/` as the document root
 - Apache rewrite support when using the included `public/.htaccess`
@@ -13,14 +13,22 @@ The gateway can run on any PHP/MySQL shared host, managed web server, or VPS. It
 
 ## Installation
 
-1. Upload or clone the repository on the target server.
+The recommended path is the bundled installer, which performs all of the steps below and hardens file permissions:
+
+- **CLI (SSH):** `bin/install.sh` — interactive or non-interactive for automation.
+- **Web (FTP/cPanel):** upload, set the docroot to `public/`, open `https://your-domain/install.php`, then delete `public/install.php` when finished.
+
+See the [Installation Guide](installation.md) for full walkthroughs. The equivalent manual steps are:
+
+1. Upload or clone the repository on the target server, above the web root.
 2. Configure the domain or virtual host document root to the repository's `public/` directory so source and configuration files are not web-accessible.
 3. Create a MySQL/MariaDB database and a database user with access to it.
 4. Copy `config/database.example.php` to `config/database.php` and set the database credentials.
 5. Copy `config/security.example.php` to `config/security.php`, replace the example HMAC secret, and keep `allow_database_secrets` disabled when using configured secrets.
 6. Import `schema/security_tables.sql`, followed by `schema/example_objects.sql`, using your database administration tool or the MySQL CLI.
-7. Insert client and permission records as shown in the README.
+7. Insert client and permission records (see the [Installation Guide](installation.md#manual-installation)).
 8. For Apache, confirm `public/.htaccess` is present so clean API URLs route to `public/index.php`. For another web server, configure an equivalent front-controller rewrite.
+9. Run `bin/harden-permissions.sh` to apply secure file and directory permissions.
 
 ## Local development server
 

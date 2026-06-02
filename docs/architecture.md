@@ -25,7 +25,9 @@ HTTP request
 
 The first four stages — HTTPS, routing, body limit, and pre-auth IP rate limiting — run *before* the audit wrapper and never touch the database, so plaintext requests, malformed routes, oversized bodies, and bot floods are rejected without database reads or audit writes.
 
-The gateway is intentionally small and dependency-free. It is not a reusable web framework or ORM. `public/index.php` wires concrete classes explicitly. `SchemaRegistry` loads enabled entities from `api_entities`; the entity URL segment is never used directly as a table identifier. `QueryBuilder` receives only allowlisted identifiers and keeps request values in prepared-statement parameters. The pre-auth and public-demo rate limiters are backed by local files (`FilesystemRateLimiter`), so no Redis, daemon, or external service is required.
+`php-dbo-gateway` is intentionally small and dependency-free. It is not a reusable web framework or ORM. `public/index.php` wires concrete classes explicitly. `SchemaRegistry` loads enabled entities from `api_entities`; the entity URL segment is never used directly as a table identifier. `QueryBuilder` receives only allowlisted identifiers and keeps request values in prepared-statement parameters. The pre-auth and public-demo rate limiters are backed by local files (`FilesystemRateLimiter`), so no Redis, daemon, or external service is required.
+
+Setup is handled outside the request path by `src/Install` (the shared installer core), surfaced through the `bin/install.sh` CLI wizard and the self-disabling `public/install.php` web installer; neither is part of the runtime request pipeline.
 
 ## Operating principle
 
