@@ -35,12 +35,7 @@ if (!is_readable($configFile)) {
 }
 $c = require $configFile;
 try {
-    $pdo = new PDO(
-        sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $c['host'], $c['port'], $c['database'], $c['charset']),
-        $c['username'],
-        $c['password'],
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false]
-    );
+    $pdo = App\Database\Dsn::connect($c);   // driver-agnostic (mysql or sqlite)
 } catch (Throwable $e) {
     fwrite(STDERR, 'SKIP: cannot connect to database: ' . $e->getMessage() . "\n");
     exit(0);

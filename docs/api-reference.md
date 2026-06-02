@@ -15,6 +15,12 @@ POST /api/v1/{entity}/delete
 
 `{entity}` must be a registered entity name (lowercase, matching `[a-z][a-z0-9_]*`). Unregistered entities, non-`POST` methods, and unknown actions are rejected before authentication.
 
+Named **service operations** (joins, reports, transactions — see [Service operations](#service-operations)) live under a separate prefix and are still the only other route shape:
+
+```text
+POST /api/v1/services/{service}/{operation}
+```
+
 ## Authentication
 
 Every authenticated request must include these headers:
@@ -190,6 +196,33 @@ Successful responses include `meta.request_id` plus `operation`, `entity`, and `
 {"ok":true,"data":[…],"meta":{"request_id":"…","operation":"select","entity":"tickets","count":10}}
 ```
 
+## Service operations
+
+For logic the generic gateway intentionally does not support — joins, multi-table reports, aggregated dashboards, transactions — the gateway exposes **named service operations**:
+
+```text
+POST /api/v1/services/{service}/{operation}
+```
+
+These run behind the **same** pipeline (HTTPS, pre-auth limit, HMAC auth, nonce, per-client rate limit, audit) as object operations, but instead of the generic object layer they invoke a developer-authored handler. The key distinction from the rejected "raw SQL" model: the query *shape* is committed, reviewed code; only the *parameters* come from the authenticated caller, and they are validated before the handler runs.
+
+Example — a tenant report backed by a JOIN + aggregate:
+
+```json
+POST /api/v1/services/reports/tenant_summary
+{ "limit": 20 }
+```
+```json
+{"ok":true,"data":[{"tenant_id":"acme","projects":3,"users":2}],
+ "meta":{"request_id":"…","operation":"reports/tenant_summary","service":"reports","count":1}}
+```
+
+Rules and guarantees:
+- **Allowlisted handlers** — a `service/operation` maps (via `config/services.php`) to an *operation key*, which resolves to a handler class only through a fixed compile-time allowlist (`OperationRegistry`). Class names are never taken from config or the database.
+- **Per-client grants** — the client must list the operation key under `config/security.php` → `clients[clientId]['services']`, else `PERMISSION_DENIED`.
+- **Validated input** — each handler declares an input spec (field types, required, min/max); unknown or out-of-range input is rejected with `SERVICE_INPUT_INVALID` before the handler executes.
+- **Bound values** — handlers use developer-written SQL with bound parameters; complex shapes (JOIN, HAVING, transactions) are fine because the structure is trusted code, not caller input.
+
 ## Public demo (optional, unsigned)
 
 When `public_demo` is enabled, the `select` route may be called **without** signature headers — but only for explicitly configured demo interfaces. Such requests are read-only, hard-capped (`max_limit`), restricted to allowlisted fields/filters, and have mandatory `required_where` filters injected (e.g. `is_demo = 1`) that the caller cannot remove. Everything else is denied with `PERMISSION_DENIED`. Demo callers are rate-limited per IP per minute/hour/day.
@@ -231,6 +264,9 @@ Routing & request shape:
 | `ROUTE_METHOD_NOT_ALLOWED` | 405 | Method other than `POST` |
 | `ENTITY_NOT_FOUND` | 404 | Unknown or disabled entity |
 | `ACTION_INVALID` | 400 | Action is not select/insert/update/delete |
+| `SERVICE_NOT_FOUND` | 404 | Unknown service |
+| `SERVICE_OPERATION_NOT_FOUND` | 404 | Unknown operation, or handler not in the allowlist |
+| `SERVICE_INPUT_INVALID` | 400 | Service operation input failed validation |
 | `REQUEST_INVALID_JSON` | 400 | Body is not a JSON object |
 | `REQUEST_CONTENT_TYPE_INVALID` | 400 | `Content-Type` is not `application/json` |
 | `REQUEST_BODY_TOO_LARGE` | 413 | Body exceeds `max_body_bytes` |

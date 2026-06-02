@@ -110,6 +110,21 @@ if ($installer->isInstalled() && !envBool('INSTALL_FORCE', false)) {
     exit(0);
 }
 
+// --- Manifest-driven install (bin/install.php --app app.json) ------------
+$appPath = null;
+foreach ($argv as $i => $arg) {
+    if ($arg === '--app' && isset($argv[$i + 1])) {
+        $appPath = $argv[$i + 1];
+    } elseif (str_starts_with($arg, '--app=')) {
+        $appPath = substr($arg, 6);
+    }
+}
+$appPath ??= (getenv('INSTALL_APP') ?: null);
+if ($appPath !== null) {
+    installFromManifest($installer, $root, $appPath);
+    exit(0);
+}
+
 // --- Step 1: preflight ---------------------------------------------------
 out("\n[1/6] Environment checks");
 $fatal = false;
@@ -126,19 +141,32 @@ if ($fatal) {
 
 // --- Step 2: database connection ----------------------------------------
 out("\n[2/6] Database connection");
-$db = [
-    'host' => ask($interactive, '  DB host', envOr('DB_HOST', 'localhost')),
-    'port' => ask($interactive, '  DB port', envOr('DB_PORT', '3306')),
-    'database' => ask($interactive, '  DB name', envOr('DB_DATABASE', 'dbo_gateway')),
-    'username' => ask($interactive, '  DB user', envOr('DB_USERNAME', 'root')),
-    'password' => $interactive
-        ? ask($interactive, '  DB password', envOr('DB_PASSWORD', ''), true)
-        : envOr('DB_PASSWORD', ''),
-    'charset' => envOr('DB_CHARSET', 'utf8mb4'),
-];
-$createDb = $interactive
-    ? askYesNo($interactive, '  Create database if missing?', false)
-    : envBool('INSTALL_CREATE_DATABASE', false);
+$driver = strtolower($interactive
+    ? ask($interactive, '  Driver (mysql/sqlite)', envOr('DB_DRIVER', 'mysql'))
+    : envOr('DB_DRIVER', 'mysql'));
+
+if ($driver === 'sqlite') {
+    $db = [
+        'driver' => 'sqlite',
+        'path' => ask($interactive, '  SQLite file path', envOr('DB_SQLITE_PATH', $root . '/storage/gateway.sqlite')),
+    ];
+    $createDb = false;
+} else {
+    $db = [
+        'driver' => 'mysql',
+        'host' => ask($interactive, '  DB host', envOr('DB_HOST', 'localhost')),
+        'port' => ask($interactive, '  DB port', envOr('DB_PORT', '3306')),
+        'database' => ask($interactive, '  DB name', envOr('DB_DATABASE', 'dbo_gateway')),
+        'username' => ask($interactive, '  DB user', envOr('DB_USERNAME', 'root')),
+        'password' => $interactive
+            ? ask($interactive, '  DB password', envOr('DB_PASSWORD', ''), true)
+            : envOr('DB_PASSWORD', ''),
+        'charset' => envOr('DB_CHARSET', 'utf8mb4'),
+    ];
+    $createDb = $interactive
+        ? askYesNo($interactive, '  Create database if missing?', false)
+        : envBool('INSTALL_CREATE_DATABASE', false);
+}
 
 $test = $installer->testDatabase($db, $createDb);
 if (!$test['ok']) {
@@ -226,3 +254,102 @@ out('   - Serve over HTTPS (require_https is ' . ($requireHttps ? 'ON' : 'OFF') 
 out('   - If a web installer was uploaded, delete public/install.php now.');
 out('   - Smoke test:  php tests/hardening_smoke.php');
 out('========================================================================');
+
+/**
+ * Manifest-driven install: stand an application up from its app.json definition
+ * (driver/database, object schema, registered entities, scoped client).
+ */
+function installFromManifest(Installer $installer, string $root, string $appPath): void
+{
+    require_once $root . '/src/Config/AppDefinition.php';
+    if (!is_readable($appPath)) {
+        fail("App manifest not readable: $appPath");
+    }
+    $def = App\Config\AppDefinition::load($appPath);
+    out("\n==> Installing app '" . $def->app() . "' (driver: " . $def->driver() . ")");
+
+    if ($def->driver() === 'sqlite') {
+        $dbPath = $def->database();
+        if (!str_starts_with($dbPath, '/')) {
+            $dbPath = $root . '/' . ltrim($dbPath, '/');
+        }
+        $db = ['driver' => 'sqlite', 'path' => $dbPath];
+    } else {
+        $db = [
+            'driver' => 'mysql',
+            'host' => envOr('DB_HOST', 'localhost'),
+            'port' => envOr('DB_PORT', '3306'),
+            'database' => $def->database() !== '' ? $def->database() : envOr('DB_DATABASE', 'dbo_gateway'),
+            'username' => envOr('DB_USERNAME', 'root'),
+            'password' => envOr('DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+        ];
+    }
+
+    foreach ($installer->preflight() as $c) {
+        if ($c['fatal'] && !$c['ok']) {
+            fail('Preflight failed: ' . $c['name']);
+        }
+    }
+
+    $test = $installer->testDatabase($db, envBool('INSTALL_CREATE_DATABASE', false));
+    if (!$test['ok']) {
+        fail('Database connection failed: ' . $test['error']);
+    }
+    $pdo = $installer->connect($db, false);
+
+    foreach ($installer->loadSchema($pdo, false) as $r) {
+        out('    schema: ' . $r['file'] . ' — ' . $r['note']);
+    }
+
+    $schemaSql = $def->dir() . '/data/schema.sql';
+    if (is_readable($schemaSql)) {
+        $installer->importSql($pdo, $schemaSql);
+        out('    app schema: data/schema.sql imported');
+    } else {
+        out('    app schema: data/schema.sql not found (skipped)');
+    }
+
+    $registryFile = $def->dir() . '/data/registry.json';
+    if ($def->entities() !== []) {
+        if (!is_readable($registryFile)) {
+            fail('manifest lists entities but data/registry.json is missing');
+        }
+        $registry = json_decode((string) file_get_contents($registryFile), true);
+        if (!is_array($registry)) {
+            fail('data/registry.json is not a JSON object');
+        }
+        $entities = [];
+        foreach ($def->entities() as $name) {
+            if (!isset($registry[$name]) || !is_array($registry[$name])) {
+                fail("registry.json is missing a definition for entity: $name");
+            }
+            $entities[$name] = $registry[$name];
+        }
+        foreach ($installer->registerEntities($pdo, $entities) as $r) {
+            out('    entity: ' . $r['entity'] . ' — ' . $r['action']);
+        }
+    }
+
+    $clientId = envOr('INSTALL_CLIENT_ID', $def->app() . '-app');
+    $actions = array_map('trim', explode(',', envOr('INSTALL_CLIENT_ACTIONS', 'select,insert,update,delete')));
+    $client = $installer->createClient($pdo, $clientId, $def->app() . ' application', $def->entities(), $actions);
+
+    $installer->ensureStorage();
+    $installer->writeDatabaseConfig($db);
+    $installer->writeSecurityConfig(
+        ['require_https' => envBool('INSTALL_REQUIRE_HTTPS', true), 'trusted_proxies' => []],
+        [$client['client_id'] => $client['secret']],
+        [$client['client_id'] => ['enforced_filters' => [], 'allow_bulk_updates' => false]],
+    );
+    $installer->hardenPermissions();
+    $installer->lock("app={$def->app()} client={$client['client_id']}");
+
+    out("\n========================================================================");
+    out("  App '{$def->app()}' installed.");
+    out("  Client id : {$client['client_id']}");
+    out('  HMAC secret (store now): ' . $client['secret']);
+    out('  Entities  : ' . (implode(', ', $def->entities()) ?: 'none'));
+    out('  Services  : ' . (implode(', ', $def->services()) ?: 'none (Phase 3)'));
+    out('========================================================================');
+}

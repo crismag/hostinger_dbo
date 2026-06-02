@@ -30,10 +30,14 @@ final class Router
         if ($request->method !== 'POST') {
             throw new ApiException('ROUTE_METHOD_NOT_ALLOWED', 'Only POST is allowed', 405);
         }
-        if (!preg_match('#^/api/v1/([a-z][a-z0-9_]*)/(select|insert|update|delete)$#', $request->path, $matches)) {
-            throw new ApiException('ROUTE_NOT_FOUND', 'Route not found', 404);
+        // Named service operations (checked first; distinct 3-segment shape).
+        if (preg_match('#^/api/v1/services/([a-z][a-z0-9_]*)/([a-z][a-z0-9_]*)$#', $request->path, $matches)) {
+            return ['kind' => 'service', 'service' => $matches[1], 'operation' => $matches[2]];
         }
-
-        return ['entity' => $matches[1], 'action' => $matches[2]];
+        // Generic object operations.
+        if (preg_match('#^/api/v1/([a-z][a-z0-9_]*)/(select|insert|update|delete)$#', $request->path, $matches)) {
+            return ['kind' => 'entity', 'entity' => $matches[1], 'action' => $matches[2]];
+        }
+        throw new ApiException('ROUTE_NOT_FOUND', 'Route not found', 404);
     }
 }

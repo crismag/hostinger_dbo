@@ -91,7 +91,7 @@ final class Installer
             'detail' => $php,
             'fatal' => true,
         ];
-        foreach (['pdo_mysql', 'mbstring', 'json'] as $ext) {
+        foreach (['mbstring', 'json'] as $ext) {
             $checks[] = [
                 'name' => "ext-$ext",
                 'ok' => extension_loaded($ext),
@@ -99,6 +99,13 @@ final class Installer
                 'fatal' => true,
             ];
         }
+        $drivers = array_values(array_filter(['pdo_mysql', 'pdo_sqlite'], 'extension_loaded'));
+        $checks[] = [
+            'name' => 'PDO driver',
+            'ok' => $drivers !== [],
+            'detail' => $drivers === [] ? 'need pdo_mysql or pdo_sqlite' : implode(', ', $drivers),
+            'fatal' => true,
+        ];
         $checks[] = [
             'name' => 'CSPRNG (random_bytes)',
             'ok' => function_exists('random_bytes'),
@@ -141,26 +148,19 @@ final class Installer
      */
     public function connect(array $db, bool $createDatabase = false): PDO
     {
-        $charset = $db['charset'] !== '' ? $db['charset'] : 'utf8mb4';
-        $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ];
-        if ($createDatabase) {
-            $dsn = sprintf('mysql:host=%s;port=%s;charset=%s', $db['host'], $db['port'], $charset);
-            $pdo = new PDO($dsn, $db['username'], $db['password'], $options);
-            $quoted = '`' . str_replace('`', '``', $db['database']) . '`';
+        require_once __DIR__ . '/../Database/Dsn.php';
+        $c = \App\Database\Dsn::normalize($db);
+
+        // MySQL only: optionally create the database before connecting into it.
+        // (SQLite has no CREATE DATABASE — the file is the database, created on connect.)
+        if ($c['driver'] === 'mysql' && $createDatabase) {
+            $serverDsn = sprintf('mysql:host=%s;port=%s;charset=%s', $c['host'], $c['port'], $c['charset']);
+            $pdo = new PDO($serverDsn, $c['username'], $c['password'], \App\Database\Dsn::OPTIONS);
+            $quoted = '`' . str_replace('`', '``', $c['database']) . '`';
             $pdo->exec("CREATE DATABASE IF NOT EXISTS $quoted CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         }
-        $dsn = sprintf(
-            'mysql:host=%s;port=%s;dbname=%s;charset=%s',
-            $db['host'],
-            $db['port'],
-            $db['database'],
-            $charset
-        );
-        return new PDO($dsn, $db['username'], $db['password'], $options);
+
+        return \App\Database\Dsn::connect($c);
     }
 
     /**
@@ -182,11 +182,20 @@ final class Installer
     /** @return list<string> */
     public function existingTables(PDO $pdo): array
     {
+        $sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+            ? "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            : 'SHOW TABLES';
         $tables = [];
-        foreach ($pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_NUM) as $row) {
+        foreach ($pdo->query($sql)->fetchAll(PDO::FETCH_NUM) as $row) {
             $tables[] = (string) $row[0];
         }
         return $tables;
+    }
+
+    /** Directory holding the schema files for this connection's driver. */
+    private function schemaDir(PDO $pdo): string
+    {
+        return $this->root . '/schema' . ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '/sqlite' : '');
     }
 
     /**
@@ -199,11 +208,12 @@ final class Installer
     {
         $results = [];
         $tables = $this->existingTables($pdo);
+        $dir = $this->schemaDir($pdo);
 
         if (in_array('api_clients', $tables, true)) {
             $results[] = ['file' => 'security_tables.sql', 'ran' => false, 'note' => 'already present, skipped'];
         } else {
-            $this->runSqlFile($pdo, $this->root . '/schema/security_tables.sql');
+            $this->runSqlFile($pdo, $dir . '/security_tables.sql');
             $results[] = ['file' => 'security_tables.sql', 'ran' => true, 'note' => 'created security/registry tables'];
         }
 
@@ -211,7 +221,7 @@ final class Installer
             if (in_array('projects', $tables, true)) {
                 $results[] = ['file' => 'example_objects.sql', 'ran' => false, 'note' => 'already present, skipped'];
             } else {
-                $this->runSqlFile($pdo, $this->root . '/schema/example_objects.sql');
+                $this->runSqlFile($pdo, $dir . '/example_objects.sql');
                 $results[] = ['file' => 'example_objects.sql', 'ran' => true, 'note' => 'created example objects + registry rows'];
             }
         }
@@ -268,6 +278,54 @@ final class Installer
         return array_map(static fn (array $r): string => (string) $r[0], $rows);
     }
 
+    /** Run a single SQL file (e.g. an application's object-table schema). */
+    public function importSql(PDO $pdo, string $path): void
+    {
+        $this->runSqlFile($pdo, $path);
+    }
+
+    /**
+     * Upsert entities into api_entities from an application registry. Every
+     * identifier is validated before it can reach a future SQL statement.
+     *
+     * @param array<string, array{table?:string,primary_key?:string,policy?:array<string,mixed>}> $entities keyed by entity_name
+     * @return list<array{entity:string,action:string}>
+     */
+    public function registerEntities(PDO $pdo, array $entities): array
+    {
+        $results = [];
+        $find = $pdo->prepare('SELECT id FROM api_entities WHERE entity_name = ?');
+        $insert = $pdo->prepare('INSERT INTO api_entities (entity_name, table_name, primary_key_name, enabled, schema_json) VALUES (:e, :t, :pk, 1, :s)');
+        $update = $pdo->prepare('UPDATE api_entities SET table_name = :t, primary_key_name = :pk, enabled = 1, schema_json = :s WHERE entity_name = :e');
+        foreach ($entities as $name => $def) {
+            $name = (string) $name;
+            $table = (string) ($def['table'] ?? $name);
+            $pk = (string) ($def['primary_key'] ?? 'id');
+            $policy = (array) ($def['policy'] ?? []);
+            $this->assertIdentifier($name);
+            $this->assertIdentifier($table);
+            $this->assertIdentifier($pk);
+            foreach ($policy as $list) {
+                foreach ((array) $list as $identifier) {
+                    $this->assertIdentifier((string) $identifier);
+                }
+            }
+            $params = [':e' => $name, ':t' => $table, ':pk' => $pk, ':s' => json_encode($policy, JSON_THROW_ON_ERROR)];
+            $find->execute([$name]);
+            $exists = $find->fetchColumn() !== false;
+            ($exists ? $update : $insert)->execute($params);
+            $results[] = ['entity' => $name, 'action' => $exists ? 'updated' : 'registered'];
+        }
+        return $results;
+    }
+
+    private function assertIdentifier(string $identifier): void
+    {
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $identifier)) {
+            throw new RuntimeException('Invalid SQL identifier in app registry: ' . $identifier);
+        }
+    }
+
     public function generateSecret(): string
     {
         return bin2hex(random_bytes(32));
@@ -319,15 +377,19 @@ final class Installer
             $dbId = (int) $dbId;
         }
 
-        $perm = $pdo->prepare(
+        // Portable upsert (works on both MySQL and SQLite): select, then update or insert.
+        $find = $pdo->prepare('SELECT id FROM api_client_permissions WHERE client_id = ? AND entity_name = ?');
+        $insertPerm = $pdo->prepare(
             'INSERT INTO api_client_permissions'
             . ' (client_id, entity_name, can_select, can_insert, can_update, can_delete, max_rows_per_select)'
             . ' VALUES (:cid, :entity, :s, :i, :u, :d, :max)'
-            . ' ON DUPLICATE KEY UPDATE can_select=VALUES(can_select), can_insert=VALUES(can_insert),'
-            . ' can_update=VALUES(can_update), can_delete=VALUES(can_delete), max_rows_per_select=VALUES(max_rows_per_select)'
+        );
+        $updatePerm = $pdo->prepare(
+            'UPDATE api_client_permissions SET can_select = :s, can_insert = :i, can_update = :u,'
+            . ' can_delete = :d, max_rows_per_select = :max WHERE client_id = :cid AND entity_name = :entity'
         );
         foreach ($entities as $entity) {
-            $perm->execute([
+            $params = [
                 ':cid' => $dbId,
                 ':entity' => $entity,
                 ':s' => in_array('select', $actions, true) ? 1 : 0,
@@ -335,7 +397,9 @@ final class Installer
                 ':u' => in_array('update', $actions, true) ? 1 : 0,
                 ':d' => in_array('delete', $actions, true) ? 1 : 0,
                 ':max' => $maxRows,
-            ]);
+            ];
+            $find->execute([$dbId, $entity]);
+            ($find->fetchColumn() === false ? $insertPerm : $updatePerm)->execute($params);
         }
 
         return ['client_id' => $clientId, 'secret' => $secret, 'db_id' => $dbId];
@@ -345,18 +409,24 @@ final class Installer
      * Write config/database.php as a self-contained array (no .env dependency),
      * so secrets never live in a plaintext file the web server might serve.
      *
-     * @param array{host:string,port:string,database:string,username:string,password:string,charset:string} $db
+     * @param array<string, mixed> $db raw driver config (mysql flat/nested or sqlite)
      */
     public function writeDatabaseConfig(array $db): void
     {
-        $config = [
-            'host' => $db['host'],
-            'port' => (string) $db['port'],
-            'database' => $db['database'],
-            'username' => $db['username'],
-            'password' => $db['password'],
-            'charset' => $db['charset'] !== '' ? $db['charset'] : 'utf8mb4',
-        ];
+        require_once __DIR__ . '/../Database/Dsn.php';
+        $c = \App\Database\Dsn::normalize($db);
+        if ($c['driver'] === 'sqlite') {
+            $config = ['driver' => 'sqlite', 'sqlite' => ['path' => $c['path']]];
+        } else {
+            $config = ['driver' => 'mysql', 'mysql' => [
+                'host' => $c['host'],
+                'port' => (string) $c['port'],
+                'database' => $c['database'],
+                'username' => $c['username'],
+                'password' => $c['password'],
+                'charset' => $c['charset'],
+            ]];
+        }
         $header = "<?php\n\ndeclare(strict_types=1);\n\n"
             . "// Generated by the installer. Keep this file outside the web root and 0600.\n"
             . "// To source from the environment instead, replace a value with getenv('DB_...').\n\n"

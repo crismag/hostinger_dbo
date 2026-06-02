@@ -4,8 +4,9 @@
 
 ## Requirements
 
-- PHP 8.1+ (tested through PHP 8.4.21) with PDO MySQL enabled. The project intentionally avoids framework dependencies and modern language features that would unnecessarily restrict PHP compatibility.
-- MySQL or MariaDB
+- PHP 8.1+ (tested through PHP 8.4.21) with PDO. The project intentionally avoids framework dependencies and modern language features that would unnecessarily restrict PHP compatibility.
+- A storage backend — **MySQL/MariaDB** (`pdo_mysql`) or **SQLite** (`pdo_sqlite`), selected by `driver` in `config/database.php`. SQLite needs no server; keep the `.sqlite` file under `storage/` (outside the web root, `0600`).
+- Optional `APP_ENV` (`dev`/`demo`/`prod`) to apply an environment profile over `config/security.php`.
 - A web server configured with `public/` as the document root
 - Apache rewrite support when using the included `public/.htaccess`
 - A TLS certificate (HTTPS is required by default; see below)
