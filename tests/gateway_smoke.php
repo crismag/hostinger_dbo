@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+assert_options(ASSERT_ACTIVE, 1);
+assert_options(ASSERT_EXCEPTION, 1);
+ini_set('assert.exception', '1');
 spl_autoload_register(static function (string $class): void {
     $prefix = 'App\\';
     if (str_starts_with($class, $prefix)) {
