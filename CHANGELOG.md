@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No unreleased changes yet._
+
+## [0.4.0] - 2026-06-03
+
 ### Added
 
 - **Service Registry** — named operations at `POST /api/v1/services/{service}/{operation}` for logic outside the generic gateway (joins, multi-table reports, transactions). Runs behind the same HMAC/nonce/rate-limit/audit pipeline via a new `ServiceController`. Handlers implement `App\Services\Operations\ServiceOperation`, receive a `ServiceContext` (DB + resolved client + enforced scope), and declare an input spec validated before execution. **Handler classes resolve only through a fixed compile-time allowlist** (`OperationRegistry`) — never from config or the database. Per-client grants live under `clients[clientId]['services']`; the `service/operation → key` map is `config/services.php`. Reference operation `reports.tenant_summary` (a JOIN + aggregate). New codes: `SERVICE_NOT_FOUND`, `SERVICE_OPERATION_NOT_FOUND`, `SERVICE_INPUT_INVALID`. Covered by `tests/service_registry_smoke.php`.
@@ -71,7 +75,8 @@ for controlled MySQL and MariaDB object access.
 - **Documentation** — README homepage plus guides for installation, security, API reference, architecture, database schema, deployment, and migration.
 - **Tests** — `tests/hardening_smoke.php` and `tests/gateway_smoke.php`.
 
-[Unreleased]: https://github.com/crismag/php-dbo-gateway/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/crismag/php-dbo-gateway/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/crismag/php-dbo-gateway/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/crismag/php-dbo-gateway/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/crismag/php-dbo-gateway/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/crismag/php-dbo-gateway/releases/tag/v0.1.0
