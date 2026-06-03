@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Service tenant-scope helper** — `ServiceContext::scopedWhere()` / `bindScopedWhere()` / `enforceScopeOrFail()` make it a one-call step for handlers to honour a client's enforced scope; conflicts raise `TENANT_SCOPE_VIOLATION`. `reports.tenant_summary` uses it; a test proves a scoped client never sees another tenant's rows.
 - **CI** — `.github/workflows/ci.yml` runs lint + the smoke suite across PHP 8.1–8.4 (SQLite always; MySQL-dependent suites skip cleanly).
 - **Docs** — `docs/service-authoring.md` (how to write service operations safely) and `docs/demo-readiness.md`.
+- **Demo app `apps/demo-ticketdesk/`** — a no-framework, SQLite-backed support-ticket app showcasing the gateway end-to-end via a signing BFF (the HMAC secret never reaches the browser). **4a:** CRUD, LIKE search, equality filters, sorting, pagination, and GROUP BY dashboard widgets, with a live request/response panel. **4b:** a JOIN-backed agent-workload report and a transactional "create ticket + first comment", both as service operations (`tickets.agent_workload`, `tickets.create_with_comment`). One-command `setup.php`.
+- Empty request bodies (`{}`) are now accepted (some operations take no input); a non-empty JSON array is still rejected as an invalid request object.
 
 ## [0.3.0] - 2026-06-02
 

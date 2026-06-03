@@ -1,0 +1,44 @@
+{
+    "customers": {
+        "table": "customers",
+        "primary_key": "id",
+        "policy": {
+            "fields": ["id", "name", "email", "created_at"],
+            "insertable": ["name", "email"],
+            "updatable": ["name", "email"],
+            "filterable": ["id", "email"],
+            "orderable": ["id", "name", "created_at"],
+            "searchable": ["name", "email"],
+            "groupable": [],
+            "aggregatable": ["id"]
+        }
+    },
+    "agents": {
+        "table": "agents",
+        "primary_key": "id",
+        "policy": {
+            "fields": ["id", "name", "email", "created_at"],
+            "insertable": ["name", "email"],
+            "updatable": ["name", "email"],
+            "filterable": ["id", "email"],
+            "orderable": ["id", "name"],
+            "searchable": ["name", "email"],
+            "groupable": [],
+            "aggregatable": ["id"]
+        }
+    },
+    "tickets": {
+        "table": "tickets",
+        "primary_key": "id",
+        "policy": {
+            "fields": ["id", "customer_id", "agent_id", "subject", "body", "status", "priority", "created_at", "updated_at"],
+            "insertable": ["customer_id", "agent_id", "subject", "body", "status", "priority"],
+            "updatable": ["subject", "body", "status", "priority", "agent_id"],
+            "filterable": ["id", "customer_id", "agent_id", "status", "priority"],
+            "orderable": ["id", "created_at", "updated_at", "priority"],
+            "searchable": ["subject", "body"],
+            "groupable": ["status", "priority", "agent_id"],
+            "aggregatable": ["id"]
+        }
+    }
+}

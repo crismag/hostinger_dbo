@@ -6,6 +6,8 @@ namespace App\Services\Operations;
 
 use App\Core\ApiException;
 use App\Services\Operations\Reports\TenantSummary;
+use App\Services\Operations\Tickets\AgentWorkload;
+use App\Services\Operations\Tickets\CreateWithComment;
 
 /**
  * Resolves a service operation key to its handler class through a FIXED,
@@ -18,6 +20,8 @@ final class OperationRegistry
     /** @var array<string, class-string<ServiceOperation>> */
     private const MAP = [
         'reports.tenant_summary' => TenantSummary::class,
+        'tickets.agent_workload' => AgentWorkload::class,
+        'tickets.create_with_comment' => CreateWithComment::class,
     ];
 
     public function has(string $key): bool

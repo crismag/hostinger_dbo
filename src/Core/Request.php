@@ -197,7 +197,9 @@ final class Request
             return $this->json;
         }
         $decoded = json_decode($this->rawBody, true);
-        if (!is_array($decoded) || array_is_list($decoded)) {
+        // Accept an empty object ({} / []) — some operations take no body — but
+        // reject a non-empty JSON array (a list is never a valid request object).
+        if (!is_array($decoded) || ($decoded !== [] && array_is_list($decoded))) {
             throw new ApiException('REQUEST_INVALID_JSON', 'Request body must be a JSON object');
         }
 
