@@ -1,0 +1,7 @@
+{
+    "app": "ticketdesk",
+    "driver": "sqlite",
+    "database": "storage/ticketdesk.sqlite",
+    "entities": ["customers", "agents", "tickets"],
+    "services": []
+}

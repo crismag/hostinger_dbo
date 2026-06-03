@@ -17,4 +17,9 @@ return [
     'reports' => [
         'tenant_summary' => ['handler' => 'reports.tenant_summary'],
     ],
+    // TicketDesk demo operations (apps/demo-ticketdesk).
+    'tickets' => [
+        'agent_workload' => ['handler' => 'tickets.agent_workload'],
+        'create_with_comment' => ['handler' => 'tickets.create_with_comment'],
+    ],
 ];

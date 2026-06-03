@@ -43,9 +43,25 @@ foreach ([['acme', 'a@x'], ['acme', 'b@x'], ['globex', 'g@x']] as $r) {
     $pdo->prepare('INSERT INTO users (tenant_id, name, email, status) VALUES (?,?,?,?)')->execute([$r[0], 'n', $r[1], 'active']);
 }
 
-$services = ['reports' => ['tenant_summary' => ['handler' => 'reports.tenant_summary']]];
+// Tables + data for the TicketDesk handlers (agent_workload JOIN, transactional create).
+$pdo->exec('CREATE TABLE agents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)');
+$pdo->exec("CREATE TABLE tickets (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_id INTEGER, agent_id INTEGER, subject TEXT NOT NULL, body TEXT, status TEXT NOT NULL DEFAULT 'open', priority TEXT NOT NULL DEFAULT 'normal')");
+$pdo->exec('CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, ticket_id INTEGER NOT NULL, author TEXT, body TEXT NOT NULL)');
+$pdo->exec("INSERT INTO agents (name) VALUES ('Sam'), ('Riley')");
+foreach ([[1, 'open'], [1, 'open'], [1, 'pending'], [2, 'closed']] as $r) {
+    $pdo->prepare('INSERT INTO tickets (agent_id, subject, status) VALUES (?,?,?)')->execute([$r[0], 's', $r[1]]);
+}
+
+$services = [
+    'reports' => ['tenant_summary' => ['handler' => 'reports.tenant_summary']],
+    'tickets' => [
+        'agent_workload' => ['handler' => 'tickets.agent_workload'],
+        'create_with_comment' => ['handler' => 'tickets.create_with_comment'],
+    ],
+];
+$ticketGrants = ['tickets.agent_workload', 'tickets.create_with_comment'];
 $clients = [
-    'svc-client' => ['enforced_filters' => [], 'services' => ['reports.tenant_summary']],
+    'svc-client' => ['enforced_filters' => [], 'services' => array_merge(['reports.tenant_summary'], $ticketGrants)],
     'no-grant' => ['enforced_filters' => []],
     'scoped-client' => ['enforced_filters' => ['tenant_id' => 'acme'], 'services' => ['reports.tenant_summary']],
 ];
@@ -106,6 +122,30 @@ try {
 $ctxUnscoped = new App\Services\Operations\ServiceContext($pdo, ['id' => 1, 'client_id' => 'x', 'secret' => 'x'], []);
 $p = [];
 check('unscoped bindScopedWhere is empty', $ctxUnscoped->bindScopedWhere([], $p, 'p') === '' && $p === []);
+
+// --- TicketDesk handlers (4b): JOIN report + transactional create ---
+$wl = run($controller, 'tickets', 'agent_workload', [], 'svc-client');
+$byAgent = [];
+foreach ($wl->payload['data'] as $row) { $byAgent[$row['agent']] = [(int) $row['open'], (int) $row['pending'], (int) $row['total']]; }
+check('agent_workload JOIN report', ($byAgent['Sam'] ?? null) === [2, 1, 3] && ($byAgent['Riley'] ?? null) === [0, 0, 1], json_encode($byAgent));
+
+$before = (int) $pdo->query('SELECT COUNT(*) FROM tickets')->fetchColumn();
+$cwc = run($controller, 'tickets', 'create_with_comment', ['subject' => 'Txn ticket', 'comment' => 'first note', 'priority' => 'high'], 'svc-client');
+$tid = $cwc->payload['data']['ticket_id'] ?? null;
+$commentRows = (int) $pdo->query('SELECT COUNT(*) FROM comments')->fetchColumn();
+check('create_with_comment commits ticket + comment', $cwc->statusCode === 200 && $tid !== null && $commentRows === 1
+    && (int) $pdo->query('SELECT COUNT(*) FROM tickets')->fetchColumn() === $before + 1, "ticket_id=" . json_encode($tid));
+
+// Transaction rollback: drop the comments table so the 2nd insert fails; the ticket insert must roll back.
+$pdo->exec('DROP TABLE comments');
+$beforeRollback = (int) $pdo->query('SELECT COUNT(*) FROM tickets')->fetchColumn();
+try {
+    run($controller, 'tickets', 'create_with_comment', ['subject' => 'Should roll back', 'comment' => 'x'], 'svc-client');
+    check('create_with_comment rolls back on failure', false, 'no exception');
+} catch (ApiException $e) {
+    $after = (int) $pdo->query('SELECT COUNT(*) FROM tickets')->fetchColumn();
+    check('create_with_comment rolls back on failure', $e->errorCode === 'OBJECT_CONFLICT' && $after === $beforeRollback, "code={$e->errorCode} tickets {$beforeRollback}->{$after}");
+}
 
 // The allowlist itself rejects keys not in the compile-time map.
 try {
