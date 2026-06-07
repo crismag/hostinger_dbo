@@ -39,3 +39,42 @@ jobs:
           php tests/driver_matrix_smoke.php
           php tests/service_registry_smoke.php
           php tests/admin_smoke.php
+
+  mysql:
+    name: MySQL integration
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: dbo_gateway
+          MYSQL_USER: dbo
+          MYSQL_PASSWORD: dbo
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo, pdo_mysql, mbstring, json
+          coverage: none
+
+      - name: Install against MySQL
+        run: |
+          INSTALL_NONINTERACTIVE=1 INSTALL_FORCE=1 \
+          DB_DRIVER=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=dbo_gateway \
+          DB_USERNAME=dbo DB_PASSWORD=dbo INSTALL_WITH_EXAMPLES=1 \
+          INSTALL_CLIENT_ID=ci INSTALL_CLIENT_ACTIONS=select,insert,update,delete \
+          php bin/install.php
+
+      - name: Query + driver-matrix on real MySQL
+        run: |
+          php tests/query_features_smoke.php
+          php tests/driver_matrix_smoke.php
