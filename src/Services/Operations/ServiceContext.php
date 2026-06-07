@@ -36,7 +36,11 @@ final class ServiceContext
         return $this->client['client_id'];
     }
 
-    /** Server-enforced scope filters for this client (e.g. ['tenant_id' => 42]); may be empty. */
+    /**
+     * Server-enforced scope filters for this client (e.g. ['tenant_id' => 42]); may be empty.
+     *
+     * @return array<string, scalar>
+     */
     public function enforcedFilters(): array
     {
         return $this->enforcedFilters;

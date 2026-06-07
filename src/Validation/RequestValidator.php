@@ -21,7 +21,10 @@ use App\Core\ApiException;
 /** Validates object-operation JSON before repository access. */
 final class RequestValidator
 {
-    /** @param array<string, mixed> $body @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
     public function validate(EntitySchema $schema, string $action, array $body): array
     {
         return match ($action) {
@@ -33,7 +36,10 @@ final class RequestValidator
         };
     }
 
-    /** @param array<string, mixed> $body @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
     private function select(EntitySchema $schema, array $body): array
     {
         $where = $this->map($body, 'where', false);
@@ -177,7 +183,10 @@ final class RequestValidator
         ];
     }
 
-    /** @param array<string, mixed> $body @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
     private function insert(EntitySchema $schema, array $body): array
     {
         $data = $this->map($body, 'data', true);
@@ -186,7 +195,10 @@ final class RequestValidator
         return compact('data');
     }
 
-    /** @param array<string, mixed> $body @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
     private function update(EntitySchema $schema, array $body): array
     {
         $where = $this->map($body, 'where', true);
@@ -197,7 +209,10 @@ final class RequestValidator
         return compact('where', 'data');
     }
 
-    /** @param array<string, mixed> $body @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
     private function delete(EntitySchema $schema, array $body): array
     {
         $where = $this->map($body, 'where', true);
@@ -206,7 +221,10 @@ final class RequestValidator
         return compact('where');
     }
 
-    /** @param array<string, mixed> $body @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
     private function map(array $body, string $key, bool $required): array
     {
         $value = $body[$key] ?? [];
@@ -222,7 +240,10 @@ final class RequestValidator
         return $value;
     }
 
-    /** @param array<mixed> $requested @param list<string> $allowed */
+    /**
+     * @param array<mixed> $requested
+     * @param list<string> $allowed
+     */
     private function allowed(array $requested, array $allowed, string $label): void
     {
         foreach ($requested as $field) {

@@ -98,7 +98,7 @@ final class PublicDemoService
         $limit = ($requested === false || $requested < 1) ? $maxLimit : min($requested, $maxLimit);
 
         $constrained = ['where' => $where, 'limit' => $limit, 'offset' => 0];
-        if (is_array($fields)) {
+        if ($fields !== []) {
             $constrained['fields'] = $fields;
         }
 

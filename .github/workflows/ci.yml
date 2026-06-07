@@ -41,6 +41,21 @@ jobs:
           php tests/admin_smoke.php
           php tests/migration_smoke.php
 
+  static-analysis:
+    name: Static analysis (PHPStan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - name: Install dev dependencies
+        run: composer install --no-interaction --no-progress
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress
+
   mysql:
     name: MySQL integration
     runs-on: ubuntu-latest

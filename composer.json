@@ -47,7 +47,8 @@
         "install-gateway": "@php bin/install.php",
         "harden": "bash bin/harden-permissions.sh",
         "cleanup": "@php bin/cleanup.php",
-        "test": "@php tests/hardening_smoke.php"
+        "test": "@php tests/hardening_smoke.php",
+        "analyse": "phpstan analyse"
     },
     "scripts-descriptions": {
         "install-gateway": "Run the interactive/non-interactive setup wizard.",
@@ -60,5 +61,8 @@
         "optimize-autoloader": true
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "require-dev": {
+        "phpstan/phpstan": "^2.2"
+    }
 }

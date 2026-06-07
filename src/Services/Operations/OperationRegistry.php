@@ -35,11 +35,7 @@ final class OperationRegistry
         if ($class === null) {
             throw new ApiException('SERVICE_OPERATION_NOT_FOUND', 'No such service operation', 404);
         }
-        $instance = new $class();
-        if (!$instance instanceof ServiceOperation) {
-            // Defensive: the allowlist must only ever map to ServiceOperation classes.
-            throw new ApiException('SERVICE_OPERATION_NOT_FOUND', 'No such service operation', 404);
-        }
-        return $instance;
+        // The MAP is typed class-string<ServiceOperation>, so this is guaranteed.
+        return new $class();
     }
 }

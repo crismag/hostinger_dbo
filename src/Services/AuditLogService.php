@@ -73,8 +73,10 @@ final class AuditLogService
                 default => true,
             };
         } catch (Throwable) {
-            // If randomness fails, avoid breaking the request pipeline.
-            return !$success;
+            // Only the sampled arm calls random_int, and only when $success is
+            // false, so this path records a failed request whose sampling roll
+            // errored — record it rather than drop it.
+            return true;
         }
     }
 }
