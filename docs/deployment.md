@@ -59,6 +59,21 @@ php bin/cleanup.php
 
 For public-facing or demo deployments, keep `audit.mode` at `authenticated_only` (the default) or `sampled` so unauthenticated traffic does not fill `api_audit_logs`. Use `all` only when you need a complete request trail.
 
+## Upgrading (schema migrations)
+
+The gateway's `api_*` tables evolve through forward-only, versioned migrations
+recorded in a `schema_migrations` table. Fresh installs apply all migrations
+automatically. To upgrade an existing deployment after pulling a new release:
+
+```bash
+php bin/migrate.php status   # show applied + pending
+php bin/migrate.php up        # apply pending migrations
+```
+
+Migrations are driver-specific (`schema/migrations/` for MySQL,
+`schema/sqlite/migrations/` for SQLite) and each runs once. Back up the database
+before upgrading production.
+
 ## Secret handling
 
 Both local configuration files and `.env` are excluded from Git. Do not expose them through the document root, commit secrets, or enable a raw SQL route.

@@ -226,6 +226,15 @@ final class Installer
             }
         }
 
+        // Apply forward migrations beyond the baseline schema.
+        require_once __DIR__ . '/MigrationRunner.php';
+        $migrationsDir = $dir . '/migrations';
+        if (is_dir($migrationsDir)) {
+            foreach ((new MigrationRunner($pdo, $migrationsDir))->migrate() as $version) {
+                $results[] = ['file' => "migration:$version", 'ran' => true, 'note' => 'applied'];
+            }
+        }
+
         return $results;
     }
 

@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Health endpoint** — unauthenticated `GET /health` returns `200 {"status":"ok"}` when the database is reachable and the registry exists, else `503 {"status":"degraded"}`. For load balancers / orchestrators.
 - **Security response headers** — `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, and `Referrer-Policy: no-referrer` on all responses; `Strict-Transport-Security` over HTTPS.
+- **Schema migrations** — forward-only, versioned migrations (`schema/migrations/`, `schema/sqlite/migrations/`) recorded in a `schema_migrations` table. Fresh installs auto-apply; existing deployments upgrade with `php bin/migrate.php up`. `App\Install\MigrationRunner`, `tests/migration_smoke.php`. First migration: an `api_audit_logs(ip_address)` index.
+- **Community/security files** — `SECURITY.md` (private disclosure), `CONTRIBUTING.md`, issue/PR templates. CI now runs the cross-driver tests against a real **MySQL** service (no longer skipped).
 
 - **CLI admin tool** (`bin/admin.php`) — ongoing administration of a running gateway: `status`/`health`, entity enable/disable, client create/enable/disable/revoke, **secret rotation**, and per-entity permission grants. `App\Admin\AdminService` holds the driver-agnostic DB operations; new `Installer::loadSecurity()`/`saveSecurity()` perform incremental, non-clobbering edits to `config/security.php` (re-secured `0600`). Covered by `tests/admin_smoke.php`. Docs: `docs/admin.md`. (Phase 2, CLI-first; the privileged web admin remains opt-in pending an auth-model decision.)
 
