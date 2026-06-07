@@ -38,3 +38,4 @@ jobs:
           php tests/query_features_smoke.php
           php tests/driver_matrix_smoke.php
           php tests/service_registry_smoke.php
+          php tests/admin_smoke.php

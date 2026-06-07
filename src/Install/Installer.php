@@ -332,6 +332,32 @@ final class Installer
     }
 
     /**
+     * Load the current security config as an array (empty if not yet written).
+     * Used by the admin tool for incremental edits that must not clobber the
+     * rest of the file.
+     *
+     * @return array<string, mixed>
+     */
+    public function loadSecurity(): array
+    {
+        return is_readable($this->securityConfigPath()) ? (array) (require $this->securityConfigPath()) : [];
+    }
+
+    /**
+     * Persist a full security config array back to config/security.php (0600).
+     *
+     * @param array<string, mixed> $config
+     */
+    public function saveSecurity(array $config): void
+    {
+        $header = "<?php\n\ndeclare(strict_types=1);\n\n"
+            . "// Updated by the admin tool. client_secrets hold HMAC keys; treat this file\n"
+            . "// as a credential and keep it 0600, outside the web root.\n\n"
+            . 'return ';
+        $this->atomicWrite($this->securityConfigPath(), $header . $this->exportArray($config) . ";\n", 0o600);
+    }
+
+    /**
      * Create the first API client and its per-entity permissions. The HMAC
      * secret lives in config/security.php, never in the database, so secret_hash
      * is a non-sensitive marker.
