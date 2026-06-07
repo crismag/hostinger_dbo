@@ -21,6 +21,14 @@ Named **service operations** (joins, reports, transactions — see [Service oper
 POST /api/v1/services/{service}/{operation}
 ```
 
+## Health check
+
+```text
+GET /health
+```
+
+Unauthenticated, no body, bypasses the pipeline. Returns `200 {"status":"ok"}` when the gateway can reach its database and the registry exists, or `503 {"status":"degraded"}` otherwise. Intended for load balancers and orchestrators; it never leaks configuration detail.
+
 ## Authentication
 
 Every authenticated request must include these headers:
