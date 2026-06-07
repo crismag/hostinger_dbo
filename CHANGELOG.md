@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes yet._
+### Added
+
+- **CLI admin tool** (`bin/admin.php`) — ongoing administration of a running gateway: `status`/`health`, entity enable/disable, client create/enable/disable/revoke, **secret rotation**, and per-entity permission grants. `App\Admin\AdminService` holds the driver-agnostic DB operations; new `Installer::loadSecurity()`/`saveSecurity()` perform incremental, non-clobbering edits to `config/security.php` (re-secured `0600`). Covered by `tests/admin_smoke.php`. Docs: `docs/admin.md`. (Phase 2, CLI-first; the privileged web admin remains opt-in pending an auth-model decision.)
 
 ## [0.4.0] - 2026-06-03
 
