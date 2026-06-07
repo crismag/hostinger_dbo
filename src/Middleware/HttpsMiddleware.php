@@ -42,6 +42,11 @@ final class HttpsMiddleware
             throw new ApiException('HTTPS_REQUIRED', 'HTTPS is required', 403);
         }
 
+        // Tell compliant clients to stay on HTTPS (only meaningful over TLS).
+        if ($request->secure) {
+            header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+        }
+
         return $next($request);
     }
 }

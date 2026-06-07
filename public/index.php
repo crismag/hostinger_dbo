@@ -69,6 +69,26 @@ if (is_file($composerAutoload)) {
 }
 
 // ---------------------------------------------------------------------------
+// Liveness/readiness probe. Unauthenticated, no body, bypasses the pipeline:
+// reports whether the gateway can reach its database and the registry exists.
+// Intended for load balancers and orchestrators.
+if (rtrim((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH), '/') === '/health') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    header('X-Content-Type-Options: nosniff');
+    try {
+        Connection::getInstance()->query('SELECT 1 FROM api_clients LIMIT 1');
+        http_response_code(200);
+        echo json_encode(['status' => 'ok']);
+    } catch (Throwable $exception) {
+        error_log('health check failed: ' . $exception->getMessage());
+        http_response_code(503);
+        echo json_encode(['status' => 'degraded']);
+    }
+    exit;
+}
+
+// ---------------------------------------------------------------------------
 // Bootstrap request metadata and deployment configuration.
 $request = null;
 try {
