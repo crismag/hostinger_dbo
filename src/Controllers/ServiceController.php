@@ -61,7 +61,7 @@ final class ServiceController
         $enforced = (array) ($this->clientsConfig[$client['client_id']]['enforced_filters'] ?? []);
         $data = $handler->execute($input, new ServiceContext($this->database, $client, $enforced));
 
-        $count = is_array($data) && array_is_list($data) ? count($data) : 1;
+        $count = array_is_list($data) ? count($data) : 1;
         return Response::success($data, (string) $request->attribute('request_id'), 200, [
             'operation' => $service . '/' . $operation,
             'service' => $service,

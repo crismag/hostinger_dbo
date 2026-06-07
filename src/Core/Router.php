@@ -19,11 +19,11 @@ namespace App\Core;
 /** Matches only the four signed database-object endpoints. */
 final class Router
 {
-    /** @return array{entity:string,action:string} */
     /**
-     * Extracts the entity and action from an allowlisted endpoint shape.
+     * Resolve an allowlisted endpoint shape into a route descriptor: either
+     * `{kind: 'entity', entity, action}` or `{kind: 'service', service, operation}`.
      *
-     * @return array{entity:string,action:string}
+     * @return array<string, string>
      */
     public function match(Request $request): array
     {

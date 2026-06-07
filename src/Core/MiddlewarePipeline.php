@@ -21,7 +21,7 @@ use Closure;
 /** Executes middleware in registration order around the controller handler. */
 final class MiddlewarePipeline
 {
-    /** @param list<object{handle(Request, Closure): Response}> $middleware */
+    /** @param list<object> $middleware each exposes handle(Request, Closure): Response */
     public function __construct(private readonly array $middleware)
     {
     }

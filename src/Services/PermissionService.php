@@ -86,7 +86,10 @@ final class PermissionService
         return is_array($decoded) && array_is_list($decoded) ? $decoded : [];
     }
 
-    /** @param array<mixed> $requested @param list<string>|null $allowed */
+    /**
+     * @param array<mixed> $requested
+     * @param list<string>|null $allowed
+     */
     private function assertSubset(array $requested, ?array $allowed, string $type): void
     {
         if ($allowed === null) {

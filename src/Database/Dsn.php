@@ -59,7 +59,11 @@ final class Dsn
         ];
     }
 
-    /** Build the DSN string for a normalized config (no credentials for mysql). */
+    /**
+     * Build the DSN string for a normalized config (no credentials for mysql).
+     *
+     * @param array<string, mixed> $normalized
+     */
     public static function string(array $normalized): string
     {
         if ($normalized['driver'] === 'sqlite') {

@@ -16,6 +16,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Core\ApiException;
 use App\Repositories\ObjectRepository;
 use App\Validation\EntitySchema;
 
@@ -26,7 +27,10 @@ final class ObjectService
     {
     }
 
-    /** @param array<string, mixed> $request */
+    /**
+     * @param array<string, mixed> $request
+     * @return array<string, mixed>|list<array<string, mixed>>
+     */
     public function execute(EntitySchema $schema, string $action, array $request): array
     {
         return match ($action) {
@@ -36,6 +40,7 @@ final class ObjectService
             'insert' => $this->objects->insert($schema->entity, $request),
             'update' => $this->objects->update($schema->entity, $request),
             'delete' => $this->objects->delete($schema->entity, $request),
+            default => throw new ApiException('ACTION_INVALID', 'Unsupported action'),
         };
     }
 }

@@ -87,7 +87,7 @@ final class Installer
         $php = PHP_VERSION;
         $checks[] = [
             'name' => 'PHP >= 8.1',
-            'ok' => PHP_VERSION_ID >= 80100,
+            'ok' => version_compare(PHP_VERSION, '8.1.0', '>='),
             'detail' => $php,
             'fatal' => true,
         ];
