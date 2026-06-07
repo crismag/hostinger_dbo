@@ -39,6 +39,7 @@ jobs:
           php tests/driver_matrix_smoke.php
           php tests/service_registry_smoke.php
           php tests/admin_smoke.php
+          php tests/migration_smoke.php
 
   mysql:
     name: MySQL integration
@@ -78,3 +79,4 @@ jobs:
         run: |
           php tests/query_features_smoke.php
           php tests/driver_matrix_smoke.php
+          php bin/migrate.php status
